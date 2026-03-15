@@ -6,13 +6,14 @@ const foregroundColorEl = document.getElementById("foregroundColor");
 const backgroundColorEl = document.getElementById("backgroundColor");
 const saveBtn = document.getElementById("saveBtn");
 const downloadBtn = document.getElementById("downloadBtn");
+const shareBtn = document.getElementById("shareBtn");
 const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 const historyListEl = document.getElementById("historyList");
 const qrContainer = document.getElementById("qrcode");
 const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
 
-const HISTORY_KEY = "qr_studio_history_v1";
+const HISTORY_KEY = "qr_studio_history_v2";
 
 function escapeWifiValue(value) {
   return value
@@ -62,19 +63,19 @@ function getTypeLabel(type) {
   return map[type] || type;
 }
 
+function escapeHtml(value) {
+  return String(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
 function previewText(item) {
-  if (item.type === "email") {
-    return item.fields.email || "";
-  }
-
-  if (item.type === "wifi") {
-    return item.fields.ssid || "";
-  }
-
-  if (item.type === "phone") {
-    return item.fields.phone || "";
-  }
-
+  if (item.type === "email") return item.fields.email || "";
+  if (item.type === "wifi") return item.fields.ssid || "";
+  if (item.type === "phone") return item.fields.phone || "";
   return item.fields.content || "";
 }
 
@@ -104,15 +105,6 @@ function renderHistory() {
       `;
     })
     .join("");
-}
-
-function escapeHtml(value) {
-  return String(value)
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#039;");
 }
 
 function renderFields() {
@@ -192,15 +184,11 @@ function getCurrentFields() {
   const type = typeEl.value;
 
   if (type === "url" || type === "text") {
-    return {
-      content: document.getElementById("content")?.value || ""
-    };
+    return { content: document.getElementById("content")?.value || "" };
   }
 
   if (type === "phone") {
-    return {
-      phone: document.getElementById("phone")?.value || ""
-    };
+    return { phone: document.getElementById("phone")?.value || "" };
   }
 
   if (type === "email") {
@@ -229,10 +217,7 @@ function buildQrData() {
   if (type === "url") {
     const content = document.getElementById("content").value.trim();
 
-    if (!content) {
-      return { error: "" };
-    }
-
+    if (!content) return { error: "" };
     if (!isValidUrl(content)) {
       return { error: "Ange en giltig URL, till exempel https://example.com" };
     }
@@ -242,21 +227,13 @@ function buildQrData() {
 
   if (type === "text") {
     const content = document.getElementById("content").value.trim();
-
-    if (!content) {
-      return { error: "" };
-    }
-
+    if (!content) return { error: "" };
     return { data: content };
   }
 
   if (type === "phone") {
     const phone = document.getElementById("phone").value.trim();
-
-    if (!phone) {
-      return { error: "" };
-    }
-
+    if (!phone) return { error: "" };
     return { data: `tel:${phone}` };
   }
 
@@ -265,10 +242,7 @@ function buildQrData() {
     const subject = document.getElementById("subject").value.trim();
     const message = document.getElementById("message").value.trim();
 
-    if (!email) {
-      return { error: "" };
-    }
-
+    if (!email) return { error: "" };
     if (!isValidEmail(email)) {
       return { error: "Ange en giltig e-postadress." };
     }
@@ -290,9 +264,7 @@ function buildQrData() {
     const encryption = document.getElementById("encryption").value;
     const hidden = document.getElementById("hiddenNetwork").checked;
 
-    if (!ssid) {
-      return { error: "" };
-    }
+    if (!ssid) return { error: "" };
 
     const safeSsid = escapeWifiValue(ssid);
     const safePassword = escapeWifiValue(password);
@@ -328,9 +300,7 @@ function generateQr() {
   qrWrapper.style.background = backgroundColor;
 
   if (!result.data) {
-    if (result.error) {
-      errorEl.textContent = result.error;
-    }
+    if (result.error) errorEl.textContent = result.error;
     return;
   }
 
@@ -344,17 +314,18 @@ function generateQr() {
   });
 }
 
-function downloadQr() {
-  const img = qrContainer.querySelector("img");
+function getQrDataUrl() {
   const canvas = qrContainer.querySelector("canvas");
+  const img = qrContainer.querySelector("img");
 
-  let source = null;
+  if (canvas) return canvas.toDataURL("image/png");
+  if (img) return img.src;
 
-  if (canvas) {
-    source = canvas.toDataURL("image/png");
-  } else if (img) {
-    source = img.src;
-  }
+  return null;
+}
+
+function downloadQr() {
+  const source = getQrDataUrl();
 
   if (!source) {
     errorEl.textContent = "Skapa en QR-kod först.";
@@ -365,6 +336,42 @@ function downloadQr() {
   link.href = source;
   link.download = "qr-kod.png";
   link.click();
+}
+
+async function shareQr() {
+  const source = getQrDataUrl();
+
+  if (!source) {
+    errorEl.textContent = "Skapa en QR-kod först.";
+    return;
+  }
+
+  try {
+    const response = await fetch(source);
+    const blob = await response.blob();
+    const file = new File([blob], "qr-kod.png", { type: "image/png" });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        title: "QR Studio",
+        text: "Här är min QR-kod",
+        files: [file]
+      });
+      return;
+    }
+
+    if (navigator.share) {
+      await navigator.share({
+        title: "QR Studio",
+        text: "Här är min QR-kod"
+      });
+      return;
+    }
+
+    errorEl.textContent = "Delning stöds inte i den här webbläsaren.";
+  } catch {
+    errorEl.textContent = "Kunde inte dela QR-koden.";
+  }
 }
 
 function saveCurrentToHistory() {
@@ -387,11 +394,8 @@ function saveCurrentToHistory() {
   };
 
   const history = getHistory();
-
   history.unshift(item);
-
-  const trimmed = history.slice(0, 10);
-  setHistory(trimmed);
+  setHistory(history.slice(0, 10));
   renderHistory();
   errorEl.textContent = "";
 }
@@ -399,7 +403,6 @@ function saveCurrentToHistory() {
 function loadHistoryItem(index) {
   const history = getHistory();
   const item = history[index];
-
   if (!item) return;
 
   typeEl.value = item.type;
@@ -455,6 +458,12 @@ function attachLiveListeners() {
   });
 }
 
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("./sw.js").catch(() => {});
+  }
+}
+
 sizeEl.addEventListener("input", () => {
   sizeValueEl.textContent = sizeEl.value;
   generateQr();
@@ -472,6 +481,7 @@ typeEl.addEventListener("change", () => {
 
 saveBtn.addEventListener("click", saveCurrentToHistory);
 downloadBtn.addEventListener("click", downloadQr);
+shareBtn.addEventListener("click", shareQr);
 clearHistoryBtn.addEventListener("click", clearHistory);
 
 historyListEl.addEventListener("click", (event) => {
@@ -481,13 +491,8 @@ historyListEl.addEventListener("click", (event) => {
   const action = button.dataset.action;
   const index = Number(button.dataset.index);
 
-  if (action === "load") {
-    loadHistoryItem(index);
-  }
-
-  if (action === "delete") {
-    deleteHistoryItem(index);
-  }
+  if (action === "load") loadHistoryItem(index);
+  if (action === "delete") deleteHistoryItem(index);
 });
 
 document.addEventListener("keydown", (event) => {
@@ -499,3 +504,4 @@ document.addEventListener("keydown", (event) => {
 renderFields();
 renderHistory();
 generateQr();
+registerServiceWorker();

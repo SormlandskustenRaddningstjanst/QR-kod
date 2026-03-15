@@ -1,1 +1,52 @@
+<!DOCTYPE html>
+<html lang="sv">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0"
+    />
+    <title>QR-kod app</title>
+    <link rel="stylesheet" href="style.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Skapa QR-koder</h1>
+      <p class="subtitle">Byggd för att fungera direkt på iPhone.</p>
 
+      <div class="card">
+        <label for="type">Typ</label>
+        <select id="type">
+          <option value="url">URL</option>
+          <option value="text">Text</option>
+        </select>
+
+        <label for="content">Innehåll</label>
+        <input
+          id="content"
+          type="text"
+          placeholder="https://example.com eller valfri text"
+        />
+
+        <label for="size">Storlek</label>
+        <input id="size" type="range" min="160" max="320" step="10" value="220" />
+        <div class="size-value"><span id="sizeValue">220</span> px</div>
+
+        <button id="generateBtn">Generera QR-kod</button>
+        <p id="error" class="error"></p>
+      </div>
+
+      <div class="card preview-card">
+        <h2>Förhandsvisning</h2>
+        <div id="qrWrapper">
+          <div id="qrcode"></div>
+        </div>
+
+        <button id="downloadBtn">Ladda ner som PNG</button>
+      </div>
+    </main>
+
+    <script src="app.js"></script>
+  </body>
+</html>

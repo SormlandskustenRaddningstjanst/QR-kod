@@ -2,12 +2,13 @@ const typeEl = document.getElementById("type");
 const contentEl = document.getElementById("content");
 const sizeEl = document.getElementById("size");
 const sizeValueEl = document.getElementById("sizeValue");
+const foregroundColorEl = document.getElementById("foregroundColor");
+const backgroundColorEl = document.getElementById("backgroundColor");
 const generateBtn = document.getElementById("generateBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const qrContainer = document.getElementById("qrcode");
+const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
-
-let qrCodeInstance = null;
 
 function isValidUrl(value) {
   try {
@@ -26,6 +27,8 @@ function generateQr() {
   const type = typeEl.value;
   const content = contentEl.value.trim();
   const size = Number(sizeEl.value);
+  const foregroundColor = foregroundColorEl.value;
+  const backgroundColor = backgroundColorEl.value;
 
   errorEl.textContent = "";
   clearQr();
@@ -40,10 +43,14 @@ function generateQr() {
     return;
   }
 
-  qrCodeInstance = new QRCode(qrContainer, {
+  qrWrapper.style.background = backgroundColor;
+
+  new QRCode(qrContainer, {
     text: content,
     width: size,
     height: size,
+    colorDark: foregroundColor,
+    colorLight: backgroundColor,
     correctLevel: QRCode.CorrectLevel.H
   });
 }
@@ -54,10 +61,10 @@ function downloadQr() {
 
   let source = null;
 
-  if (img) {
-    source = img.src;
-  } else if (canvas) {
+  if (canvas) {
     source = canvas.toDataURL("image/png");
+  } else if (img) {
+    source = img.src;
   }
 
   if (!source) {
@@ -77,3 +84,9 @@ sizeEl.addEventListener("input", () => {
 
 generateBtn.addEventListener("click", generateQr);
 downloadBtn.addEventListener("click", downloadQr);
+
+contentEl.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    generateQr();
+  }
+});

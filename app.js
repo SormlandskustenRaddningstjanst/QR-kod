@@ -12,8 +12,9 @@ const historyListEl = document.getElementById("historyList");
 const qrContainer = document.getElementById("qrcode");
 const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
+const networkBadgeEl = document.getElementById("networkBadge");
 
-const HISTORY_KEY = "qr_studio_history_v2";
+const HISTORY_KEY = "qr_studio_history_v3";
 
 function escapeWifiValue(value) {
   return value
@@ -91,12 +92,8 @@ function renderHistory() {
     .map((item, index) => {
       return `
         <div class="history-item">
-          <div class="history-top">
-            <div>
-              <span class="history-type">${getTypeLabel(item.type)}</span>
-              <p class="history-text">${escapeHtml(previewText(item))}</p>
-            </div>
-          </div>
+          <span class="history-type">${getTypeLabel(item.type)}</span>
+          <p class="history-text">${escapeHtml(previewText(item))}</p>
           <div class="history-actions">
             <button data-action="load" data-index="${index}">Använd igen</button>
             <button data-action="delete" data-index="${index}">Ta bort</button>
@@ -129,7 +126,6 @@ function renderFields() {
       <div class="field-group">
         <label for="phone">Telefonnummer</label>
         <input id="phone" type="text" placeholder="+46701234567" />
-        <p class="helper">Tips: använd landskod för bästa kompatibilitet.</p>
       </div>
     `;
   } else if (type === "email") {
@@ -216,12 +212,10 @@ function buildQrData() {
 
   if (type === "url") {
     const content = document.getElementById("content").value.trim();
-
     if (!content) return { error: "" };
     if (!isValidUrl(content)) {
       return { error: "Ange en giltig URL, till exempel https://example.com" };
     }
-
     return { data: content };
   }
 
@@ -251,11 +245,11 @@ function buildQrData() {
     if (subject) params.set("subject", subject);
     if (message) params.set("body", message);
 
-    const mailto = params.toString()
-      ? `mailto:${email}?${params.toString()}`
-      : `mailto:${email}`;
-
-    return { data: mailto };
+    return {
+      data: params.toString()
+        ? `mailto:${email}?${params.toString()}`
+        : `mailto:${email}`
+    };
   }
 
   if (type === "wifi") {
@@ -293,11 +287,10 @@ function generateQr() {
   const backgroundColor = backgroundColorEl.value;
 
   errorEl.textContent = "";
-
-  const result = buildQrData();
-
   clearQr();
   qrWrapper.style.background = backgroundColor;
+
+  const result = buildQrData();
 
   if (!result.data) {
     if (result.error) errorEl.textContent = result.error;
@@ -320,7 +313,6 @@ function getQrDataUrl() {
 
   if (canvas) return canvas.toDataURL("image/png");
   if (img) return img.src;
-
   return null;
 }
 
@@ -368,7 +360,7 @@ async function shareQr() {
       return;
     }
 
-    errorEl.textContent = "Delning stöds inte i den här webbläsaren.";
+    errorEl.textContent = "Delning stöds inte här.";
   } catch {
     errorEl.textContent = "Kunde inte dela QR-koden.";
   }
@@ -382,7 +374,8 @@ function saveCurrentToHistory() {
     return;
   }
 
-  const item = {
+  const history = getHistory();
+  history.unshift({
     type: typeEl.value,
     fields: getCurrentFields(),
     settings: {
@@ -391,10 +384,8 @@ function saveCurrentToHistory() {
       backgroundColor: backgroundColorEl.value
     },
     createdAt: Date.now()
-  };
+  });
 
-  const history = getHistory();
-  history.unshift(item);
   setHistory(history.slice(0, 10));
   renderHistory();
   errorEl.textContent = "";
@@ -415,19 +406,13 @@ function loadHistoryItem(index) {
 
   if (item.type === "url" || item.type === "text") {
     document.getElementById("content").value = item.fields.content || "";
-  }
-
-  if (item.type === "phone") {
+  } else if (item.type === "phone") {
     document.getElementById("phone").value = item.fields.phone || "";
-  }
-
-  if (item.type === "email") {
+  } else if (item.type === "email") {
     document.getElementById("email").value = item.fields.email || "";
     document.getElementById("subject").value = item.fields.subject || "";
     document.getElementById("message").value = item.fields.message || "";
-  }
-
-  if (item.type === "wifi") {
+  } else if (item.type === "wifi") {
     document.getElementById("ssid").value = item.fields.ssid || "";
     document.getElementById("password").value = item.fields.password || "";
     document.getElementById("encryption").value = item.fields.encryption || "WPA";
@@ -458,6 +443,16 @@ function attachLiveListeners() {
   });
 }
 
+function updateNetworkBadge() {
+  if (navigator.onLine) {
+    networkBadgeEl.textContent = "Online";
+    networkBadgeEl.className = "network-badge online";
+  } else {
+    networkBadgeEl.textContent = "Offline";
+    networkBadgeEl.className = "network-badge offline";
+  }
+}
+
 function registerServiceWorker() {
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
@@ -474,7 +469,6 @@ backgroundColorEl.addEventListener("input", generateQr);
 
 typeEl.addEventListener("change", () => {
   errorEl.textContent = "";
-  clearQr();
   renderFields();
   generateQr();
 });
@@ -495,6 +489,9 @@ historyListEl.addEventListener("click", (event) => {
   if (action === "delete") deleteHistoryItem(index);
 });
 
+window.addEventListener("online", updateNetworkBadge);
+window.addEventListener("offline", updateNetworkBadge);
+
 document.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
     generateQr();
@@ -504,4 +501,5 @@ document.addEventListener("keydown", (event) => {
 renderFields();
 renderHistory();
 generateQr();
+updateNetworkBadge();
 registerServiceWorker();

@@ -160,17 +160,36 @@ input[type="color"] {
   background: white;
 }
 
-.primary-btn {
-  margin-top: 18px;
+.primary-btn,
+.secondary-btn,
+.ghost-btn {
   border: none;
   padding: 15px 16px;
   font-weight: 800;
+}
+
+.primary-btn {
   color: white;
   background: linear-gradient(135deg, #111827, #374151);
   box-shadow: 0 10px 20px rgba(17, 24, 39, 0.18);
 }
 
-.primary-btn:active {
+.secondary-btn {
+  margin-top: 18px;
+  color: #111827;
+  background: #eef2ff;
+}
+
+.ghost-btn {
+  width: auto;
+  padding: 10px 14px;
+  color: #374151;
+  background: #f3f4f6;
+}
+
+.primary-btn:active,
+.secondary-btn:active,
+.ghost-btn:active {
   transform: scale(0.985);
 }
 
@@ -178,14 +197,17 @@ input[type="color"] {
   text-align: center;
 }
 
-.preview-header {
+.preview-header,
+.history-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
   margin-bottom: 14px;
 }
 
-.preview-header h2 {
+.preview-header h2,
+.history-header h2 {
   margin: 0;
 }
 
@@ -266,6 +288,69 @@ input[type="color"] {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
+}
+
+.history-card {
+  margin-top: 16px;
+}
+
+.history-list {
+  display: grid;
+  gap: 12px;
+}
+
+.history-item {
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 14px;
+}
+
+.history-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: start;
+}
+
+.history-type {
+  display: inline-block;
+  margin-bottom: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2ff;
+  color: #4338ca;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.history-text {
+  margin: 0;
+  color: #374151;
+  font-size: 14px;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.history-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.history-actions button {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: none;
+  border-radius: 12px;
+  background: #111827;
+  color: white;
+}
+
+.empty-state {
+  margin: 0;
+  color: var(--muted);
 }
 
 @media (min-width: 768px) {

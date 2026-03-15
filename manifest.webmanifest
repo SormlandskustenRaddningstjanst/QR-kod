@@ -1,0 +1,23 @@
+{
+  "name": "QR Studio",
+  "short_name": "QR Studio",
+  "description": "Skapa QR-koder för länkar, text, telefon, e-post och Wi-Fi.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#111827",
+  "lang": "sv",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "https://dummyimage.com/192x192/111827/ffffff&text=QR",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "https://dummyimage.com/512x512/111827/ffffff&text=QR",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

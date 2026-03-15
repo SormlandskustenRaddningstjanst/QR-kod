@@ -4,27 +4,34 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>QR Studio</title>
+
     <meta name="theme-color" content="#111827" />
+    <meta name="description" content="Skapa QR-koder för länkar, text, telefon, e-post och Wi-Fi." />
+
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="QR Studio" />
-    <meta
-      name="description"
-      content="Skapa QR-koder för länkar, text, telefon, e-post och Wi-Fi direkt på iPhone."
-    />
+
     <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="https://dummyimage.com/180x180/111827/ffffff&text=QR" />
+    <link rel="apple-touch-icon" href="icon-192.svg" />
     <link rel="stylesheet" href="style.css" />
+
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   </head>
   <body>
     <main class="app">
       <section class="hero">
-        <p class="eyebrow">QR Studio</p>
-        <h1>Skapa QR-koder direkt på iPhone</h1>
-        <p class="hero-text">
-          Generera QR-koder för länkar, text, telefon, e-post och Wi-Fi.
-        </p>
+        <div class="hero-top">
+          <div>
+            <p class="eyebrow">QR Studio</p>
+            <h1>Skapa QR-koder direkt på iPhone</h1>
+            <p class="hero-text">
+              Generera QR-koder för länkar, text, telefon, e-post och Wi-Fi.
+            </p>
+          </div>
+
+          <div id="networkBadge" class="network-badge online">Online</div>
+        </div>
       </section>
 
       <section class="panel">
@@ -63,8 +70,9 @@
 
           <button id="saveBtn" class="secondary-btn">Spara i historik</button>
           <p id="error" class="error"></p>
+
           <p class="helper install-tip">
-            För att lägga till appen på hemskärmen i iPhone: öppna delningsmenyn i Safari och välj
+            I Safari: tryck på <strong>Dela</strong> och välj
             <strong>Lägg till på hemskärmen</strong>.
           </p>
         </div>

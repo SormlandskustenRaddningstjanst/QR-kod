@@ -51,7 +51,7 @@
             </div>
           </div>
 
-          <button id="generateBtn" class="primary-btn">Generera QR-kod</button>
+          <button id="saveBtn" class="secondary-btn">Spara i historik</button>
           <p id="error" class="error"></p>
         </div>
 
@@ -68,6 +68,17 @@
           <div class="action-group">
             <button id="downloadBtn" class="primary-btn">Ladda ner PNG</button>
           </div>
+        </div>
+      </section>
+
+      <section class="card history-card">
+        <div class="history-header">
+          <h2>Historik</h2>
+          <button id="clearHistoryBtn" class="ghost-btn">Rensa historik</button>
+        </div>
+
+        <div id="historyList" class="history-list">
+          <p class="empty-state">Ingen historik ännu.</p>
         </div>
       </section>
     </main>

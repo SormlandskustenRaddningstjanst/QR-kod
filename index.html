@@ -11,9 +11,9 @@
     <main class="app">
       <section class="hero">
         <p class="eyebrow">QR Studio</p>
-        <h1>Skapa snygga QR-koder direkt på iPhone</h1>
+        <h1>Skapa QR-koder direkt på iPhone</h1>
         <p class="hero-text">
-          Generera QR-koder för länkar eller text, välj färger och ladda ner som PNG.
+          Generera QR-koder för länkar, text, telefon, e-post och Wi-Fi.
         </p>
       </section>
 
@@ -25,14 +25,12 @@
           <select id="type">
             <option value="url">URL</option>
             <option value="text">Text</option>
+            <option value="phone">Telefon</option>
+            <option value="email">E-post</option>
+            <option value="wifi">Wi-Fi</option>
           </select>
 
-          <label for="content">Innehåll</label>
-          <input
-            id="content"
-            type="text"
-            placeholder="https://example.com eller valfri text"
-          />
+          <div id="dynamicFields"></div>
 
           <label for="size">Storlek</label>
           <input id="size" type="range" min="160" max="320" step="10" value="220" />

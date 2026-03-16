@@ -2,21 +2,30 @@
 <html lang="sv">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+    />
     <title>QR Studio</title>
 
     <meta name="theme-color" content="#111827" />
-    <meta name="description" content="Skapa QR-koder för länkar, text, telefon, e-post och Wi-Fi." />
+    <meta
+      name="description"
+      content="Skapa QR-koder för länkar, text, telefon, e-post och Wi-Fi."
+    />
 
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <meta name="apple-mobile-web-app-title" content="QR Studio" />
 
     <link rel="manifest" href="manifest.webmanifest" />
     <link rel="apple-touch-icon" href="icon-192.svg" />
     <link rel="stylesheet" href="style.css" />
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js"></script>
   </head>
   <body>
     <main class="app">
@@ -50,7 +59,14 @@
           <div id="dynamicFields"></div>
 
           <label for="size">Storlek</label>
-          <input id="size" type="range" min="160" max="320" step="10" value="220" />
+          <input
+            id="size"
+            type="range"
+            min="160"
+            max="320"
+            step="10"
+            value="220"
+          />
           <div class="meta-row">
             <span>Storlek</span>
             <strong><span id="sizeValue">220</span> px</strong>
@@ -80,7 +96,7 @@
         <div class="card preview-card">
           <div class="preview-header">
             <h2>Förhandsvisning</h2>
-            <span class="badge">PNG</span>
+            <span class="badge">PNG + SVG</span>
           </div>
 
           <div id="qrWrapper">
@@ -89,7 +105,12 @@
 
           <div class="action-group stacked-actions">
             <button id="downloadBtn" class="primary-btn">Ladda ner PNG</button>
-            <button id="shareBtn" class="ghost-btn wide-btn">Dela QR-kod</button>
+            <button id="downloadSvgBtn" class="secondary-btn">
+              Ladda ner SVG
+            </button>
+            <button id="shareBtn" class="ghost-btn wide-btn">
+              Dela QR-kod
+            </button>
           </div>
         </div>
       </section>
@@ -97,7 +118,9 @@
       <section class="card history-card">
         <div class="history-header">
           <h2>Historik</h2>
-          <button id="clearHistoryBtn" class="ghost-btn">Rensa historik</button>
+          <button id="clearHistoryBtn" class="ghost-btn">
+            Rensa historik
+          </button>
         </div>
 
         <div id="historyList" class="history-list">

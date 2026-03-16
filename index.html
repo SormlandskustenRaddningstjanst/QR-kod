@@ -94,6 +94,24 @@
             Ladda upp en logotyp som placeras i mitten av QR-koden.
           </p>
 
+          <label for="logoSize">Logotypstorlek</label>
+          <input
+            id="logoSize"
+            type="range"
+            min="10"
+            max="40"
+            step="1"
+            value="25"
+          />
+          <div class="meta-row">
+            <span>Storlek</span>
+            <strong><span id="logoSizeValue">25</span>%</strong>
+          </div>
+
+          <button id="removeLogoBtn" class="ghost-btn wide-btn" type="button">
+            Ta bort logotyp
+          </button>
+
           <button id="saveBtn" class="secondary-btn">Spara i historik</button>
           <p id="error" class="error"></p>
 

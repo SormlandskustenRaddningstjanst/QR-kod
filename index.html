@@ -98,8 +98,13 @@
         <div class="card">
           <h2>Inställningar</h2>
 
-          <div id="editBanner" class="helper" hidden>
-            Du redigerar en sparad QR-kod.
+          <div id="editBanner" class="edit-banner" hidden>
+            <strong>Redigeringsläge</strong>
+            <span id="editBannerText">Du redigerar en sparad QR-kod.</span>
+          </div>
+
+          <div id="saveModeBadge" class="save-mode-badge">
+            Sparas lokalt på enheten
           </div>
 
           <label for="qrName">Namn på QR-koden</label>
@@ -179,9 +184,14 @@
 
           <div class="action-group stacked-actions">
             <button id="saveBtn" class="secondary-btn" type="button">
-              Spara i historik
+              Spara ny QR-kod
             </button>
-            <button id="cancelEditBtn" class="ghost-btn wide-btn" type="button" hidden>
+            <button
+              id="cancelEditBtn"
+              class="ghost-btn wide-btn"
+              type="button"
+              hidden
+            >
               Avbryt redigering
             </button>
           </div>
@@ -196,6 +206,9 @@
           </div>
 
           <div id="qrWrapper">
+            <div id="previewEmptyState" class="preview-empty-state">
+              Välj typ och fyll i innehåll för att se din QR-kod här.
+            </div>
             <div id="qrcode"></div>
           </div>
 
@@ -240,10 +253,15 @@
         </div>
 
         <div id="historyList" class="history-list">
-          <p class="empty-state">Ingen historik ännu.</p>
+          <div class="history-empty-state">
+            <strong>Ingen historik ännu</strong>
+            <p>Skapa och spara din första QR-kod för att se den här.</p>
+          </div>
         </div>
       </section>
     </main>
+
+    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
 
     <script src="app.js"></script>
   </body>

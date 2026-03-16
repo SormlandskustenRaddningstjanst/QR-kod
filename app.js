@@ -4,6 +4,7 @@ const sizeEl = document.getElementById("size");
 const sizeValueEl = document.getElementById("sizeValue");
 const foregroundColorEl = document.getElementById("foregroundColor");
 const backgroundColorEl = document.getElementById("backgroundColor");
+const logoUploadEl = document.getElementById("logoUpload");
 const saveBtn = document.getElementById("saveBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const downloadSvgBtn = document.getElementById("downloadSvgBtn");
@@ -15,9 +16,10 @@ const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
 const networkBadgeEl = document.getElementById("networkBadge");
 
-const HISTORY_KEY = "qr_studio_history_v4";
+const HISTORY_KEY = "qr_studio_history_v5";
 
 let qrCode = null;
+let logoImage = null;
 
 function createQrInstance() {
   qrCode = new QRCodeStyling({
@@ -26,8 +28,14 @@ function createQrInstance() {
     type: "canvas",
     data: " ",
     margin: 0,
+    image: logoImage,
     qrOptions: {
       errorCorrectionLevel: "H"
+    },
+    imageOptions: {
+      crossOrigin: "anonymous",
+      margin: 6,
+      imageSize: 0.25
     },
     dotsOptions: {
       color: foregroundColorEl.value,
@@ -329,6 +337,7 @@ function updateQr() {
     width: size,
     height: size,
     data: result.data || " ",
+    image: logoImage,
     dotsOptions: {
       color: foregroundColor,
       type: "rounded"
@@ -343,6 +352,11 @@ function updateQr() {
     cornersDotOptions: {
       type: "dot",
       color: foregroundColor
+    },
+    imageOptions: {
+      crossOrigin: "anonymous",
+      margin: 6,
+      imageSize: 0.25
     }
   });
 
@@ -510,6 +524,25 @@ function registerServiceWorker() {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
 }
+
+logoUploadEl.addEventListener("change", () => {
+  const file = logoUploadEl.files?.[0];
+
+  if (!file) {
+    logoImage = null;
+    updateQr();
+    return;
+  }
+
+  const reader = new FileReader();
+
+  reader.onload = (event) => {
+    logoImage = event.target.result;
+    updateQr();
+  };
+
+  reader.readAsDataURL(file);
+});
 
 sizeEl.addEventListener("input", () => {
   sizeValueEl.textContent = sizeEl.value;

@@ -454,3 +454,7 @@ input[type="color"] {
     grid-template-columns: 1fr 220px;
   }
 }
+
+#editBanner {
+  margin-bottom: 12px;
+}

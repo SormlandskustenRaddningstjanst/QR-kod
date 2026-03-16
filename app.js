@@ -45,6 +45,7 @@ const authLoggedOutEl = document.getElementById("authLoggedOut");
 const authLoggedInEl = document.getElementById("authLoggedIn");
 const userEmailEl = document.getElementById("userEmail");
 const authMessageEl = document.getElementById("authMessage");
+const loadingStatusEl = document.getElementById("loadingStatus");
 
 const confirmModalEl = document.getElementById("confirmModal");
 const confirmModalTitleEl = document.getElementById("confirmModalTitle");
@@ -52,7 +53,7 @@ const confirmModalMessageEl = document.getElementById("confirmModalMessage");
 const confirmCancelBtn = document.getElementById("confirmCancelBtn");
 const confirmOkBtn = document.getElementById("confirmOkBtn");
 
-const HISTORY_KEY = "qr_studio_history_v14";
+const HISTORY_KEY = "qr_studio_history_v15";
 
 let qrCode = null;
 let logoImage = null;
@@ -60,6 +61,26 @@ let currentUser = null;
 let editingId = null;
 let activeConfirmResolve = null;
 let lastFocusedElement = null;
+
+function setButtonLoading(button, isLoading, loadingText, defaultText) {
+  if (!button) return;
+
+  if (isLoading) {
+    button.dataset.defaultText = defaultText || button.textContent;
+    button.textContent = loadingText;
+    button.disabled = true;
+  } else {
+    button.textContent =
+      button.dataset.defaultText || defaultText || button.textContent;
+    button.disabled = false;
+  }
+}
+
+function setStatusText(element, text = "") {
+  if (!element) return;
+  element.textContent = text;
+  element.hidden = !text;
+}
 
 function openConfirmModal({
   title = "Bekräfta",
@@ -190,22 +211,6 @@ function resetFormForNewItem() {
 
 function getLogoSize() {
   return Number(logoSizeEl.value) / 100;
-}
-
-function setButtonsDisabled(disabled) {
-  [
-    saveBtn,
-    downloadBtn,
-    downloadSvgBtn,
-    shareBtn,
-    signUpBtn,
-    signInBtn,
-    signOutBtn,
-    importLocalBtn,
-    importAndClearLocalBtn
-  ].forEach((button) => {
-    if (button) button.disabled = disabled;
-  });
 }
 
 function createQrInstance() {
@@ -1005,10 +1010,14 @@ function saveCurrentToLocal() {
 async function loadCloudHistory() {
   if (!currentUser) return;
 
+  setStatusText(loadingStatusEl, "Laddar historik...");
+
   const { data, error } = await supabase
     .from("qr_codes")
     .select("*")
     .order("updated_at", { ascending: false });
+
+  setStatusText(loadingStatusEl, "");
 
   if (error) {
     setAuthMessage("Kunde inte läsa sparade QR-koder.", "error");
@@ -1040,7 +1049,19 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     return;
   }
 
-  setButtonsDisabled(true);
+  setButtonLoading(
+    importLocalBtn,
+    true,
+    "Importerar...",
+    "Importera lokal historik"
+  );
+  setButtonLoading(
+    importAndClearLocalBtn,
+    true,
+    "Importerar...",
+    "Importera och rensa lokal historik"
+  );
+  setStatusText(loadingStatusEl, "Importerar historik...");
 
   const { data: existingData, error: existingError } = await supabase
     .from("qr_codes")
@@ -1048,7 +1069,19 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     .order("created_at", { ascending: false });
 
   if (existingError) {
-    setButtonsDisabled(false);
+    setButtonLoading(
+      importLocalBtn,
+      false,
+      "",
+      "Importera lokal historik"
+    );
+    setButtonLoading(
+      importAndClearLocalBtn,
+      false,
+      "",
+      "Importera och rensa lokal historik"
+    );
+    setStatusText(loadingStatusEl, "");
     setAuthMessage("Kunde inte läsa molnhistorik före import.", "error");
     return;
   }
@@ -1083,7 +1116,19 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     const { error } = await supabase.from("qr_codes").insert(rowsToInsert);
 
     if (error) {
-      setButtonsDisabled(false);
+      setButtonLoading(
+        importLocalBtn,
+        false,
+        "",
+        "Importera lokal historik"
+      );
+      setButtonLoading(
+        importAndClearLocalBtn,
+        false,
+        "",
+        "Importera och rensa lokal historik"
+      );
+      setStatusText(loadingStatusEl, "");
       setAuthMessage("Kunde inte importera lokal historik.", "error");
       return;
     }
@@ -1093,7 +1138,19 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     localStorage.removeItem(HISTORY_KEY);
   }
 
-  setButtonsDisabled(false);
+  setButtonLoading(
+    importLocalBtn,
+    false,
+    "",
+    "Importera lokal historik"
+  );
+  setButtonLoading(
+    importAndClearLocalBtn,
+    false,
+    "",
+    "Importera och rensa lokal historik"
+  );
+  setStatusText(loadingStatusEl, "");
 
   if (!rowsToInsert.length && options.clearAfterImport) {
     setAuthMessage(
@@ -1135,11 +1192,21 @@ async function saveCurrent() {
   const item = buildHistoryItem();
   if (!item) return;
 
-  setButtonsDisabled(true);
+  setButtonLoading(
+    saveBtn,
+    true,
+    editingId ? "Uppdaterar..." : "Sparar...",
+    editingId ? "Uppdatera sparad QR-kod" : "Spara ny QR-kod"
+  );
 
   if (!currentUser) {
     saveCurrentToLocal();
-    setButtonsDisabled(false);
+    setButtonLoading(
+      saveBtn,
+      false,
+      "",
+      editingId ? "Uppdatera sparad QR-kod" : "Spara ny QR-kod"
+    );
     return;
   }
 
@@ -1158,7 +1225,12 @@ async function saveCurrent() {
       })
       .eq("id", editingId);
 
-    setButtonsDisabled(false);
+    setButtonLoading(
+      saveBtn,
+      false,
+      "",
+      "Uppdatera sparad QR-kod"
+    );
 
     if (error) {
       setAuthMessage("Kunde inte uppdatera QR-koden.", "error");
@@ -1183,7 +1255,12 @@ async function saveCurrent() {
 
   const { error } = await supabase.from("qr_codes").insert(payload);
 
-  setButtonsDisabled(false);
+  setButtonLoading(
+    saveBtn,
+    false,
+    "",
+    "Spara ny QR-kod"
+  );
 
   if (error) {
     setAuthMessage("Kunde inte spara i molnet.", "error");
@@ -1207,15 +1284,20 @@ async function deleteItem(id) {
 
   if (!confirmed) return;
 
+  setStatusText(loadingStatusEl, "Tar bort...");
+
   if (!currentUser) {
     setHistory(getHistory().filter((entry) => entry.id !== id));
     if (editingId === id) setEditMode(null);
     renderHistory();
+    setStatusText(loadingStatusEl, "");
     showToast("QR-koden togs bort", "success");
     return;
   }
 
   const { error } = await supabase.from("qr_codes").delete().eq("id", id);
+
+  setStatusText(loadingStatusEl, "");
 
   if (error) {
     setAuthMessage("Kunde inte ta bort QR-koden.", "error");
@@ -1329,8 +1411,10 @@ async function clearHistory() {
 
   if (!confirmed) return;
 
+  setStatusText(loadingStatusEl, "Rensar historik...");
   localStorage.removeItem(HISTORY_KEY);
   renderHistory();
+  setStatusText(loadingStatusEl, "");
   showToast("Lokal historik rensades", "success");
 }
 
@@ -1392,10 +1476,14 @@ async function signUp() {
     return;
   }
 
+  setButtonLoading(signUpBtn, true, "Skapar konto...", "Skapa konto");
+
   const { error } = await supabase.auth.signUp({
     email,
     password
   });
+
+  setButtonLoading(signUpBtn, false, "", "Skapa konto");
 
   setAuthMessage(
     error
@@ -1414,10 +1502,14 @@ async function signIn() {
     return;
   }
 
+  setButtonLoading(signInBtn, true, "Loggar in...", "Logga in");
+
   const { error } = await supabase.auth.signInWithPassword({
     email,
     password
   });
+
+  setButtonLoading(signInBtn, false, "", "Logga in");
 
   if (error) {
     setAuthMessage(error.message, "error");
@@ -1429,7 +1521,12 @@ async function signIn() {
 }
 
 async function signOut() {
+  setButtonLoading(signOutBtn, true, "Loggar ut...", "Logga ut");
+
   const { error } = await supabase.auth.signOut();
+
+  setButtonLoading(signOutBtn, false, "", "Logga ut");
+
   setAuthMessage(error ? error.message : "Utloggad.", error ? "error" : "success");
   setEditMode(null);
   await refreshAuthState();

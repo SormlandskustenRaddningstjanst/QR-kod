@@ -1,5 +1,6 @@
 const SUPABASE_URL = "https://msgcthdjhpjiuffcvuxb.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ2N0aGRqaHBqaXVmZmN2dXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MTc3NzYsImV4cCI6MjA4OTE5Mzc3Nn0.HFr-tYME8WhcQYcZ1o25bIj-7aHBu7IYN8a3hn66D0s";
+const SUPABASE_ANON_KEY =
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ2N0aGRqaHBqaXVmZmN2dXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MTc3NzYsImV4cCI6MjA4OTE5Mzc3Nn0.HFr-tYME8WhcQYcZ1o25bIj-7aHBu7IYN8a3hn66D0s";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const typeEl = document.getElementById("type");
@@ -14,6 +15,8 @@ const logoSizeEl = document.getElementById("logoSize");
 const logoSizeValueEl = document.getElementById("logoSizeValue");
 const removeLogoBtn = document.getElementById("removeLogoBtn");
 const saveBtn = document.getElementById("saveBtn");
+const cancelEditBtn = document.getElementById("cancelEditBtn");
+const editBannerEl = document.getElementById("editBanner");
 const downloadBtn = document.getElementById("downloadBtn");
 const downloadSvgBtn = document.getElementById("downloadSvgBtn");
 const shareBtn = document.getElementById("shareBtn");
@@ -38,11 +41,43 @@ const authLoggedInEl = document.getElementById("authLoggedIn");
 const userEmailEl = document.getElementById("userEmail");
 const authMessageEl = document.getElementById("authMessage");
 
-const HISTORY_KEY = "qr_studio_history_v10";
+const HISTORY_KEY = "qr_studio_history_v11";
 
 let qrCode = null;
 let logoImage = null;
 let currentUser = null;
+let editingId = null;
+
+function setEditMode(id = null) {
+  editingId = id;
+
+  if (editingId) {
+    saveBtn.textContent = "Uppdatera sparad QR-kod";
+    cancelEditBtn.hidden = false;
+    editBannerEl.hidden = false;
+  } else {
+    saveBtn.textContent = "Spara i historik";
+    cancelEditBtn.hidden = true;
+    editBannerEl.hidden = true;
+  }
+}
+
+function resetFormForNewItem() {
+  qrNameEl.value = "";
+  typeEl.value = "url";
+  sizeEl.value = 220;
+  sizeValueEl.textContent = "220";
+  foregroundColorEl.value = "#111111";
+  backgroundColorEl.value = "#ffffff";
+  logoSizeEl.value = 25;
+  logoSizeValueEl.textContent = "25";
+  logoImage = null;
+  logoUploadEl.value = "";
+  errorEl.textContent = "";
+  setEditMode(null);
+  renderFields();
+  updateQr();
+}
 
 function getLogoSize() {
   return Number(logoSizeEl.value) / 100;
@@ -254,6 +289,7 @@ function renderHistory() {
 
           <div class="history-actions">
             <button data-action="load" data-id="${item.id}" type="button">Använd igen</button>
+            <button data-action="edit" data-id="${item.id}" type="button">Redigera</button>
             <button data-action="duplicate" data-id="${item.id}" type="button">Duplicera</button>
             <button data-action="delete" data-id="${item.id}" type="button">Ta bort</button>
           </div>
@@ -695,7 +731,7 @@ function buildHistoryItem() {
   }
 
   return {
-    id: generateId(),
+    id: editingId || generateId(),
     name: qrNameEl.value.trim() || getDefaultName(),
     type: typeEl.value,
     fields: getCurrentFields(),
@@ -772,11 +808,39 @@ function applyItemToForm(item) {
   updateQr();
 }
 
+function startEditingItem(id) {
+  const item = findHistoryItemById(id);
+  if (!item) return;
+
+  setEditMode(id);
+  applyItemToForm(item);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
 function saveCurrentToLocal() {
   const item = buildHistoryItem();
   if (!item) return;
 
   const history = getHistory();
+
+  if (editingId) {
+    const existing = findHistoryItemById(editingId);
+    const updated = history.map((entry) =>
+      entry.id === editingId
+        ? {
+            ...item,
+            createdAt: existing?.createdAt || Date.now(),
+            isFavorite: existing?.isFavorite || false
+          }
+        : entry
+    );
+    setHistory(updated);
+    renderHistory();
+    errorEl.textContent = "";
+    setEditMode(null);
+    return;
+  }
+
   history.unshift(item);
   setHistory(history.slice(0, 50));
   renderHistory();
@@ -896,13 +960,39 @@ async function importAndClearLocalHistory() {
 }
 
 async function saveCurrent() {
+  const item = buildHistoryItem();
+  if (!item) return;
+
   if (!currentUser) {
     saveCurrentToLocal();
     return;
   }
 
-  const item = buildHistoryItem();
-  if (!item) return;
+  if (editingId) {
+    const existing = findHistoryItemById(editingId);
+
+    const { error } = await supabase
+      .from("qr_codes")
+      .update({
+        name: item.name,
+        type: item.type,
+        fields: item.fields,
+        settings: item.settings,
+        is_favorite: existing?.isFavorite || false,
+        updated_at: new Date().toISOString()
+      })
+      .eq("id", editingId);
+
+    if (error) {
+      authMessageEl.textContent = "Kunde inte uppdatera QR-koden.";
+      return;
+    }
+
+    authMessageEl.textContent = "QR-koden uppdaterades.";
+    setEditMode(null);
+    await loadCloudHistory();
+    return;
+  }
 
   const payload = {
     user_id: currentUser.id,
@@ -927,6 +1017,7 @@ async function saveCurrent() {
 async function deleteItem(id) {
   if (!currentUser) {
     setHistory(getHistory().filter((item) => item.id !== id));
+    if (editingId === id) setEditMode(null);
     renderHistory();
     return;
   }
@@ -938,6 +1029,7 @@ async function deleteItem(id) {
     return;
   }
 
+  if (editingId === id) setEditMode(null);
   await loadCloudHistory();
 }
 
@@ -1118,6 +1210,7 @@ async function signIn() {
 async function signOut() {
   const { error } = await supabase.auth.signOut();
   authMessageEl.textContent = error ? error.message : "Utloggad.";
+  setEditMode(null);
   await refreshAuthState();
 }
 
@@ -1144,6 +1237,10 @@ removeLogoBtn.addEventListener("click", () => {
   logoImage = null;
   logoUploadEl.value = "";
   updateQr();
+});
+
+cancelEditBtn.addEventListener("click", () => {
+  resetFormForNewItem();
 });
 
 logoSizeEl.addEventListener("input", () => {
@@ -1196,6 +1293,7 @@ historyListEl.addEventListener("click", async (event) => {
   if (!id) return;
 
   if (action === "load") loadHistoryItem(id);
+  if (action === "edit") startEditingItem(id);
   if (action === "duplicate") await duplicateItem(id);
   if (action === "delete") await deleteItem(id);
   if (action === "favorite") await toggleFavorite(id);
@@ -1221,5 +1319,5 @@ createQrInstance();
 updateQr();
 updateNetworkBadge();
 registerServiceWorker();
-refreshAuthState();registerServiceWorker();
+setEditMode(null);
 refreshAuthState();

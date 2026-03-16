@@ -1,268 +1,148 @@
 <!DOCTYPE html>
 <html lang="sv">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, viewport-fit=cover"
-    />
-    <title>QR Studio</title>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 
-    <meta name="theme-color" content="#111827" />
-    <meta
-      name="description"
-      content="Skapa QR-koder för länkar, text, telefon, e-post, SMS, WhatsApp, vCard och Wi-Fi."
-    />
+<title>QR Studio</title>
 
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta
-      name="apple-mobile-web-app-status-bar-style"
-      content="black-translucent"
-    />
-    <meta name="apple-mobile-web-app-title" content="QR Studio" />
+<meta name="theme-color" content="#111827">
 
-    <link rel="manifest" href="manifest.webmanifest" />
-    <link rel="apple-touch-icon" href="icon-192.svg" />
-    <link rel="stylesheet" href="style.css" />
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="style.css">
 
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js"></script>
-  </head>
-  <body>
-    <main class="app">
-      <section class="hero">
-        <div class="hero-top">
-          <div>
-            <p class="eyebrow">QR Studio</p>
-            <h1>Skapa QR-koder direkt på iPhone</h1>
-            <p class="hero-text">
-              Generera QR-koder för länkar, text, telefon, e-post, SMS,
-              WhatsApp, kontaktkort och Wi-Fi.
-            </p>
-          </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js"></script>
 
-          <div id="networkBadge" class="network-badge online">Online</div>
-        </div>
-      </section>
+</head>
+<body>
 
-      <section class="panel">
-        <div class="card">
-          <h2>Konto</h2>
+<main class="app">
 
-          <div id="authLoggedOut">
-            <label for="authEmail">E-post</label>
-            <input id="authEmail" type="email" placeholder="namn@example.com" />
+<header class="hero">
+<h1>QR Studio</h1>
+<p>Skapa QR-koder direkt på iPhone</p>
+</header>
 
-            <label for="authPassword">Lösenord</label>
-            <input
-              id="authPassword"
-              type="password"
-              placeholder="Minst 6 tecken"
-            />
+<section class="panel">
 
-            <div class="action-group stacked-actions">
-              <button id="signUpBtn" class="secondary-btn" type="button">
-                Skapa konto
-              </button>
-              <button id="signInBtn" class="primary-btn" type="button">
-                Logga in
-              </button>
-            </div>
-          </div>
+<div class="card">
 
-          <div id="authLoggedIn" hidden>
-            <p class="helper">Inloggad som <strong id="userEmail"></strong></p>
+<h2>QR-inställningar</h2>
 
-            <div class="action-group stacked-actions">
-              <button id="importLocalBtn" class="secondary-btn" type="button">
-                Importera lokal historik
-              </button>
+<label>Namn</label>
+<input id="qrName" type="text" placeholder="Exempel: Mässmonter">
 
-              <button
-                id="importAndClearLocalBtn"
-                class="secondary-btn"
-                type="button"
-              >
-                Importera och rensa lokal historik
-              </button>
+<label>Typ</label>
+<select id="type">
+<option value="url">URL</option>
+<option value="text">Text</option>
+<option value="phone">Telefon</option>
+<option value="email">E-post</option>
+<option value="sms">SMS</option>
+<option value="whatsapp">WhatsApp</option>
+<option value="vcard">Kontaktkort</option>
+<option value="wifi">Wi-Fi</option>
+</select>
 
-              <button id="signOutBtn" class="ghost-btn wide-btn" type="button">
-                Logga ut
-              </button>
-            </div>
-          </div>
+<div id="dynamicFields"></div>
 
-          <p id="authMessage" class="helper"></p>
-        </div>
+<label>Storlek</label>
+<input id="size" type="range" min="160" max="320" value="220">
+<div class="meta-row">
+<span>Storlek</span>
+<strong><span id="sizeValue">220</span> px</strong>
+</div>
 
-        <div class="card">
-          <h2>Inställningar</h2>
+<div class="color-grid">
 
-          <div id="editBanner" class="edit-banner" hidden>
-            <strong>Redigeringsläge</strong>
-            <span id="editBannerText">Du redigerar en sparad QR-kod.</span>
-          </div>
+<div>
+<label>QR-färg</label>
+<input id="foregroundColor" type="color" value="#111111">
+</div>
 
-          <div id="saveModeBadge" class="save-mode-badge">
-            Sparas lokalt på enheten
-          </div>
+<div>
+<label>Bakgrund</label>
+<input id="backgroundColor" type="color" value="#ffffff">
+</div>
 
-          <label for="qrName">Namn på QR-koden</label>
-          <input
-            id="qrName"
-            type="text"
-            placeholder="Till exempel: Mässmonter, WiFi kontor..."
-          />
+</div>
 
-          <label for="type">Typ</label>
-          <select id="type">
-            <option value="url">URL</option>
-            <option value="text">Text</option>
-            <option value="phone">Telefon</option>
-            <option value="email">E-post</option>
-            <option value="sms">SMS</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="vcard">Kontaktkort (vCard)</option>
-            <option value="wifi">Wi-Fi</option>
-          </select>
+<label>Logotyp</label>
+<input id="logoUpload" type="file" accept="image/png,image/jpeg,image/svg+xml">
 
-          <div id="dynamicFields"></div>
+<label>Logotypstorlek</label>
+<input id="logoSize" type="range" min="10" max="40" value="25">
 
-          <label for="size">Storlek</label>
-          <input
-            id="size"
-            type="range"
-            min="160"
-            max="320"
-            step="10"
-            value="220"
-          />
-          <div class="meta-row">
-            <span>Storlek</span>
-            <strong><span id="sizeValue">220</span> px</strong>
-          </div>
+<div class="meta-row">
+<span>Storlek</span>
+<strong><span id="logoSizeValue">25</span>%</strong>
+</div>
 
-          <div class="color-grid">
-            <div>
-              <label for="foregroundColor">QR-färg</label>
-              <input id="foregroundColor" type="color" value="#111111" />
-            </div>
+<button id="removeLogoBtn">Ta bort logotyp</button>
 
-            <div>
-              <label for="backgroundColor">Bakgrund</label>
-              <input id="backgroundColor" type="color" value="#ffffff" />
-            </div>
-          </div>
+<button id="saveBtn">Spara QR-kod</button>
 
-          <label for="logoUpload">Logotyp i mitten</label>
-          <input
-            type="file"
-            id="logoUpload"
-            accept="image/png,image/jpeg,image/svg+xml"
-          />
-          <p class="helper">
-            Ladda upp en logotyp som placeras i mitten av QR-koden.
-          </p>
+</div>
 
-          <label for="logoSize">Logotypstorlek</label>
-          <input
-            id="logoSize"
-            type="range"
-            min="10"
-            max="40"
-            step="1"
-            value="25"
-          />
-          <div class="meta-row">
-            <span>Storlek</span>
-            <strong><span id="logoSizeValue">25</span>%</strong>
-          </div>
 
-          <button id="removeLogoBtn" class="ghost-btn wide-btn" type="button">
-            Ta bort logotyp
-          </button>
+<div class="card preview-card">
 
-          <div class="action-group stacked-actions">
-            <button id="saveBtn" class="secondary-btn" type="button">
-              Spara ny QR-kod
-            </button>
-            <button
-              id="cancelEditBtn"
-              class="ghost-btn wide-btn"
-              type="button"
-              hidden
-            >
-              Avbryt redigering
-            </button>
-          </div>
+<h2>Förhandsvisning</h2>
 
-          <p id="error" class="error"></p>
-        </div>
+<div id="qrWrapper">
+<div id="qrcode"></div>
+</div>
 
-        <div class="card preview-card">
-          <div class="preview-header">
-            <h2>Förhandsvisning</h2>
-            <span class="badge">PNG + SVG</span>
-          </div>
+<button id="downloadBtn">Ladda ner PNG</button>
+<button id="downloadSvgBtn">Ladda ner SVG</button>
 
-          <div id="qrWrapper">
-            <div id="previewEmptyState" class="preview-empty-state">
-              Välj typ och fyll i innehåll för att se din QR-kod här.
-            </div>
-            <div id="qrcode"></div>
-          </div>
+</div>
 
-          <div class="action-group stacked-actions">
-            <button id="downloadBtn" class="primary-btn">Ladda ner PNG</button>
-            <button id="downloadSvgBtn" class="secondary-btn">
-              Ladda ner SVG
-            </button>
-            <button id="shareBtn" class="ghost-btn wide-btn">
-              Dela QR-kod
-            </button>
-          </div>
-        </div>
-      </section>
+</section>
 
-      <section class="card history-card">
-        <div class="history-header">
-          <h2>Historik</h2>
-          <button id="clearHistoryBtn" class="ghost-btn" type="button">
-            Rensa historik
-          </button>
-        </div>
 
-        <div class="history-toolbar">
-          <input
-            id="historySearch"
-            type="text"
-            placeholder="Sök i historiken..."
-          />
+<section class="card history-card">
 
-          <select id="historyFilter">
-            <option value="all">Alla typer</option>
-            <option value="url">URL</option>
-            <option value="text">Text</option>
-            <option value="phone">Telefon</option>
-            <option value="email">E-post</option>
-            <option value="sms">SMS</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="vcard">Kontaktkort</option>
-            <option value="wifi">Wi-Fi</option>
-          </select>
-        </div>
+<div class="history-header">
+<h2>Historik</h2>
+<button id="clearHistoryBtn">Rensa historik</button>
+</div>
 
-        <div id="historyList" class="history-list">
-          <div class="history-empty-state">
-            <strong>Ingen historik ännu</strong>
-            <p>Skapa och spara din första QR-kod för att se den här.</p>
-          </div>
-        </div>
-      </section>
-    </main>
+<div id="historyList"></div>
 
-    <div id="toastContainer" class="toast-container" aria-live="polite"></div>
+</section>
 
-    <script src="app.js"></script>
-  </body>
+</main>
+
+
+<div id="toastContainer" class="toast-container"></div>
+
+
+<!-- BEKRÄFTELSEMODAL -->
+
+<div id="confirmModal" class="modal-backdrop" hidden>
+
+<div class="modal-card">
+
+<h3 id="confirmModalTitle">Bekräfta</h3>
+
+<p id="confirmModalMessage">Är du säker?</p>
+
+<div class="modal-actions">
+
+<button id="confirmCancelBtn">Avbryt</button>
+
+<button id="confirmOkBtn">Fortsätt</button>
+
+</div>
+
+</div>
+
+</div>
+
+
+<script src="app.js"></script>
+
+</body>
 </html>

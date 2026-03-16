@@ -25,6 +25,7 @@
     <link rel="apple-touch-icon" href="icon-192.svg" />
     <link rel="stylesheet" href="style.css" />
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js"></script>
   </head>
   <body>
@@ -45,6 +46,36 @@
       </section>
 
       <section class="panel">
+        <div class="card">
+          <h2>Konto</h2>
+
+          <div id="authLoggedOut">
+            <label for="authEmail">E-post</label>
+            <input id="authEmail" type="email" placeholder="namn@example.com" />
+
+            <label for="authPassword">Lösenord</label>
+            <input id="authPassword" type="password" placeholder="Minst 6 tecken" />
+
+            <div class="action-group stacked-actions">
+              <button id="signUpBtn" class="secondary-btn" type="button">
+                Skapa konto
+              </button>
+              <button id="signInBtn" class="primary-btn" type="button">
+                Logga in
+              </button>
+            </div>
+          </div>
+
+          <div id="authLoggedIn" hidden>
+            <p class="helper">Inloggad som <strong id="userEmail"></strong></p>
+            <button id="signOutBtn" class="ghost-btn wide-btn" type="button">
+              Logga ut
+            </button>
+          </div>
+
+          <p id="authMessage" class="helper"></p>
+        </div>
+
         <div class="card">
           <h2>Inställningar</h2>
 
@@ -125,11 +156,6 @@
 
           <button id="saveBtn" class="secondary-btn">Spara i historik</button>
           <p id="error" class="error"></p>
-
-          <p class="helper install-tip">
-            I Safari: tryck på <strong>Dela</strong> och välj
-            <strong>Lägg till på hemskärmen</strong>.
-          </p>
         </div>
 
         <div class="card preview-card">
@@ -157,7 +183,7 @@
       <section class="card history-card">
         <div class="history-header">
           <h2>Historik</h2>
-          <button id="clearHistoryBtn" class="ghost-btn">
+          <button id="clearHistoryBtn" class="ghost-btn" type="button">
             Rensa historik
           </button>
         </div>

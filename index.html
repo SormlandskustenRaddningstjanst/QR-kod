@@ -98,6 +98,10 @@
         <div class="card">
           <h2>Inställningar</h2>
 
+          <div id="editBanner" class="helper" hidden>
+            Du redigerar en sparad QR-kod.
+          </div>
+
           <label for="qrName">Namn på QR-koden</label>
           <input
             id="qrName"
@@ -173,7 +177,15 @@
             Ta bort logotyp
           </button>
 
-          <button id="saveBtn" class="secondary-btn">Spara i historik</button>
+          <div class="action-group stacked-actions">
+            <button id="saveBtn" class="secondary-btn" type="button">
+              Spara i historik
+            </button>
+            <button id="cancelEditBtn" class="ghost-btn wide-btn" type="button" hidden>
+              Avbryt redigering
+            </button>
+          </div>
+
           <p id="error" class="error"></p>
         </div>
 

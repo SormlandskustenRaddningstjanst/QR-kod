@@ -5,6 +5,9 @@ const sizeValueEl = document.getElementById("sizeValue");
 const foregroundColorEl = document.getElementById("foregroundColor");
 const backgroundColorEl = document.getElementById("backgroundColor");
 const logoUploadEl = document.getElementById("logoUpload");
+const logoSizeEl = document.getElementById("logoSize");
+const logoSizeValueEl = document.getElementById("logoSizeValue");
+const removeLogoBtn = document.getElementById("removeLogoBtn");
 const saveBtn = document.getElementById("saveBtn");
 const downloadBtn = document.getElementById("downloadBtn");
 const downloadSvgBtn = document.getElementById("downloadSvgBtn");
@@ -16,10 +19,14 @@ const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
 const networkBadgeEl = document.getElementById("networkBadge");
 
-const HISTORY_KEY = "qr_studio_history_v5";
+const HISTORY_KEY = "qr_studio_history_v6";
 
 let qrCode = null;
 let logoImage = null;
+
+function getLogoSize() {
+  return Number(logoSizeEl.value) / 100;
+}
 
 function createQrInstance() {
   qrCode = new QRCodeStyling({
@@ -35,7 +42,7 @@ function createQrInstance() {
     imageOptions: {
       crossOrigin: "anonymous",
       margin: 6,
-      imageSize: 0.25
+      imageSize: getLogoSize()
     },
     dotsOptions: {
       color: foregroundColorEl.value,
@@ -356,7 +363,7 @@ function updateQr() {
     imageOptions: {
       crossOrigin: "anonymous",
       margin: 6,
-      imageSize: 0.25
+      imageSize: getLogoSize()
     }
   });
 
@@ -447,7 +454,8 @@ function saveCurrentToHistory() {
     settings: {
       size: Number(sizeEl.value),
       foregroundColor: foregroundColorEl.value,
-      backgroundColor: backgroundColorEl.value
+      backgroundColor: backgroundColorEl.value,
+      logoSize: Number(logoSizeEl.value)
     },
     createdAt: Date.now()
   });
@@ -470,6 +478,11 @@ function loadHistoryItem(index) {
   foregroundColorEl.value = item.settings.foregroundColor;
   backgroundColorEl.value = item.settings.backgroundColor;
 
+  if (item.settings.logoSize) {
+    logoSizeEl.value = item.settings.logoSize;
+    logoSizeValueEl.textContent = item.settings.logoSize;
+  }
+
   if (item.type === "url" || item.type === "text") {
     document.getElementById("content").value = item.fields.content || "";
   } else if (item.type === "phone") {
@@ -481,8 +494,10 @@ function loadHistoryItem(index) {
   } else if (item.type === "wifi") {
     document.getElementById("ssid").value = item.fields.ssid || "";
     document.getElementById("password").value = item.fields.password || "";
-    document.getElementById("encryption").value = item.fields.encryption || "WPA";
-    document.getElementById("hiddenNetwork").checked = !!item.fields.hiddenNetwork;
+    document.getElementById("encryption").value =
+      item.fields.encryption || "WPA";
+    document.getElementById("hiddenNetwork").checked =
+      !!item.fields.hiddenNetwork;
   }
 
   updateQr();
@@ -544,6 +559,17 @@ logoUploadEl.addEventListener("change", () => {
   reader.readAsDataURL(file);
 });
 
+removeLogoBtn.addEventListener("click", () => {
+  logoImage = null;
+  logoUploadEl.value = "";
+  updateQr();
+});
+
+logoSizeEl.addEventListener("input", () => {
+  logoSizeValueEl.textContent = logoSizeEl.value;
+  updateQr();
+});
+
 sizeEl.addEventListener("input", () => {
   sizeValueEl.textContent = sizeEl.value;
   updateQr();
@@ -584,6 +610,7 @@ document.addEventListener("keydown", (event) => {
   }
 });
 
+logoSizeValueEl.textContent = logoSizeEl.value;
 renderFields();
 renderHistory();
 createQrInstance();

@@ -47,6 +47,13 @@
         <div class="card">
           <h2>Inställningar</h2>
 
+          <label for="qrName">Namn på QR-koden</label>
+          <input
+            id="qrName"
+            type="text"
+            placeholder="Till exempel: Mässmonter, WiFi kontor..."
+          />
+
           <label for="type">Typ</label>
           <select id="type">
             <option value="url">URL</option>
@@ -149,6 +156,23 @@
           <button id="clearHistoryBtn" class="ghost-btn">
             Rensa historik
           </button>
+        </div>
+
+        <div class="history-toolbar">
+          <input
+            id="historySearch"
+            type="text"
+            placeholder="Sök i historiken..."
+          />
+
+          <select id="historyFilter">
+            <option value="all">Alla typer</option>
+            <option value="url">URL</option>
+            <option value="text">Text</option>
+            <option value="phone">Telefon</option>
+            <option value="email">E-post</option>
+            <option value="wifi">Wi-Fi</option>
+          </select>
         </div>
 
         <div id="historyList" class="history-list">

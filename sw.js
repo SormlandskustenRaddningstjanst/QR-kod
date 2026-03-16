@@ -1,4 +1,4 @@
-const CACHE_NAME = "qr-studio-cache-v3";
+const CACHE_NAME = "qr-studio-cache-v4";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -8,7 +8,7 @@ const APP_SHELL = [
   "./offline.html",
   "./icon-192.svg",
   "./icon-512.svg",
-  "https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"
+  "https://cdn.jsdelivr.net/npm/qr-code-styling@1.9.2/lib/qr-code-styling.js"
 ];
 
 self.addEventListener("install", (event) => {

@@ -1,4 +1,5 @@
 const typeEl = document.getElementById("type");
+const qrNameEl = document.getElementById("qrName");
 const dynamicFieldsEl = document.getElementById("dynamicFields");
 const sizeEl = document.getElementById("size");
 const sizeValueEl = document.getElementById("sizeValue");
@@ -13,13 +14,15 @@ const downloadBtn = document.getElementById("downloadBtn");
 const downloadSvgBtn = document.getElementById("downloadSvgBtn");
 const shareBtn = document.getElementById("shareBtn");
 const clearHistoryBtn = document.getElementById("clearHistoryBtn");
+const historySearchEl = document.getElementById("historySearch");
+const historyFilterEl = document.getElementById("historyFilter");
 const historyListEl = document.getElementById("historyList");
 const qrContainer = document.getElementById("qrcode");
 const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
 const networkBadgeEl = document.getElementById("networkBadge");
 
-const HISTORY_KEY = "qr_studio_history_v6";
+const HISTORY_KEY = "qr_studio_history_v7";
 
 let qrCode = null;
 let logoImage = null;
@@ -63,6 +66,22 @@ function createQrInstance() {
 
   qrContainer.innerHTML = "";
   qrCode.append(qrContainer);
+}
+
+function generateId() {
+  return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+}
+
+function getDefaultName() {
+  const type = typeEl.value;
+  const map = {
+    url: "Ny URL-kod",
+    text: "Ny textkod",
+    phone: "Nytt telefonnummer",
+    email: "Ny e-postkod",
+    wifi: "Nytt Wi-Fi"
+  };
+  return map[type] || "Ny QR-kod";
 }
 
 function escapeWifiValue(value) {
@@ -125,23 +144,79 @@ function previewText(item) {
   return item.fields.content || "";
 }
 
-function renderHistory() {
+function formatDate(timestamp) {
+  try {
+    return new Intl.DateTimeFormat("sv-SE", {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    }).format(new Date(timestamp));
+  } catch {
+    return "";
+  }
+}
+
+function getFilteredHistory() {
+  const search = historySearchEl.value.trim().toLowerCase();
+  const filter = historyFilterEl.value;
   const items = getHistory();
 
+  const filtered = items.filter((item) => {
+    const matchesType = filter === "all" || item.type === filter;
+
+    const haystack = [
+      item.name || "",
+      getTypeLabel(item.type),
+      previewText(item)
+    ]
+      .join(" ")
+      .toLowerCase();
+
+    const matchesSearch = !search || haystack.includes(search);
+
+    return matchesType && matchesSearch;
+  });
+
+  filtered.sort((a, b) => {
+    if (a.isFavorite && !b.isFavorite) return -1;
+    if (!a.isFavorite && b.isFavorite) return 1;
+    return (b.createdAt || 0) - (a.createdAt || 0);
+  });
+
+  return filtered;
+}
+
+function renderHistory() {
+  const items = getFilteredHistory();
+
   if (!items.length) {
-    historyListEl.innerHTML = `<p class="empty-state">Ingen historik ännu.</p>`;
+    historyListEl.innerHTML = `<p class="empty-state">Ingen historik matchar din sökning.</p>`;
     return;
   }
 
   historyListEl.innerHTML = items
-    .map((item, index) => {
+    .map((item) => {
       return `
-        <div class="history-item">
-          <span class="history-type">${getTypeLabel(item.type)}</span>
+        <div class="history-item ${item.isFavorite ? "is-favorite" : ""}">
+          <div class="history-item-top">
+            <div>
+              <span class="history-type">${getTypeLabel(item.type)}</span>
+              <h3 class="history-name">${escapeHtml(item.name || getDefaultName())}</h3>
+            </div>
+            <button class="history-star" data-action="favorite" data-id="${item.id}" type="button">
+              ${item.isFavorite ? "★" : "☆"}
+            </button>
+          </div>
+
           <p class="history-text">${escapeHtml(previewText(item))}</p>
+          <p class="history-date">Sparad: ${escapeHtml(formatDate(item.createdAt))}</p>
+
           <div class="history-actions">
-            <button data-action="load" data-index="${index}">Använd igen</button>
-            <button data-action="delete" data-index="${index}">Ta bort</button>
+            <button data-action="load" data-id="${item.id}" type="button">Använd igen</button>
+            <button data-action="duplicate" data-id="${item.id}" type="button">Duplicera</button>
+            <button data-action="delete" data-id="${item.id}" type="button">Ta bort</button>
           </div>
         </div>
       `;
@@ -439,16 +514,17 @@ async function shareQr() {
   }
 }
 
-function saveCurrentToHistory() {
+function buildHistoryItem() {
   const result = buildQrData();
 
   if (!result.data) {
     errorEl.textContent = "Fyll i giltig information innan du sparar.";
-    return;
+    return null;
   }
 
-  const history = getHistory();
-  history.unshift({
+  return {
+    id: generateId(),
+    name: qrNameEl.value.trim() || getDefaultName(),
     type: typeEl.value,
     fields: getCurrentFields(),
     settings: {
@@ -457,19 +533,31 @@ function saveCurrentToHistory() {
       backgroundColor: backgroundColorEl.value,
       logoSize: Number(logoSizeEl.value)
     },
-    createdAt: Date.now()
-  });
+    createdAt: Date.now(),
+    isFavorite: false
+  };
+}
 
-  setHistory(history.slice(0, 10));
+function saveCurrentToHistory() {
+  const item = buildHistoryItem();
+  if (!item) return;
+
+  const history = getHistory();
+  history.unshift(item);
+  setHistory(history.slice(0, 50));
   renderHistory();
   errorEl.textContent = "";
 }
 
-function loadHistoryItem(index) {
-  const history = getHistory();
-  const item = history[index];
+function findHistoryItemById(id) {
+  return getHistory().find((item) => item.id === id);
+}
+
+function loadHistoryItem(id) {
+  const item = findHistoryItemById(id);
   if (!item) return;
 
+  qrNameEl.value = item.name || "";
   typeEl.value = item.type;
   renderFields();
 
@@ -503,9 +591,42 @@ function loadHistoryItem(index) {
   updateQr();
 }
 
-function deleteHistoryItem(index) {
+function duplicateHistoryItem(id) {
+  const item = findHistoryItemById(id);
+  if (!item) return;
+
   const history = getHistory();
-  history.splice(index, 1);
+
+  const duplicated = {
+    ...item,
+    id: generateId(),
+    name: `${item.name || getDefaultName()} (kopia)`,
+    createdAt: Date.now(),
+    isFavorite: false
+  };
+
+  history.unshift(duplicated);
+  setHistory(history.slice(0, 50));
+  renderHistory();
+}
+
+function deleteHistoryItem(id) {
+  const history = getHistory().filter((item) => item.id !== id);
+  setHistory(history);
+  renderHistory();
+}
+
+function toggleFavorite(id) {
+  const history = getHistory().map((item) => {
+    if (item.id === id) {
+      return {
+        ...item,
+        isFavorite: !item.isFavorite
+      };
+    }
+    return item;
+  });
+
   setHistory(history);
   renderHistory();
 }
@@ -590,15 +711,22 @@ downloadSvgBtn.addEventListener("click", () => downloadQr("svg"));
 shareBtn.addEventListener("click", shareQr);
 clearHistoryBtn.addEventListener("click", clearHistory);
 
+historySearchEl.addEventListener("input", renderHistory);
+historyFilterEl.addEventListener("change", renderHistory);
+
 historyListEl.addEventListener("click", (event) => {
   const button = event.target.closest("button");
   if (!button) return;
 
   const action = button.dataset.action;
-  const index = Number(button.dataset.index);
+  const id = button.dataset.id;
 
-  if (action === "load") loadHistoryItem(index);
-  if (action === "delete") deleteHistoryItem(index);
+  if (!id) return;
+
+  if (action === "load") loadHistoryItem(id);
+  if (action === "duplicate") duplicateHistoryItem(id);
+  if (action === "delete") deleteHistoryItem(id);
+  if (action === "favorite") toggleFavorite(id);
 });
 
 window.addEventListener("online", updateNetworkBadge);

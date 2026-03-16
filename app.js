@@ -22,7 +22,7 @@ const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
 const networkBadgeEl = document.getElementById("networkBadge");
 
-const HISTORY_KEY = "qr_studio_history_v7";
+const HISTORY_KEY = "qr_studio_history_v8";
 
 let qrCode = null;
 let logoImage = null;
@@ -79,6 +79,9 @@ function getDefaultName() {
     text: "Ny textkod",
     phone: "Nytt telefonnummer",
     email: "Ny e-postkod",
+    sms: "Nytt SMS",
+    whatsapp: "Ny WhatsApp-kod",
+    vcard: "Nytt kontaktkort",
     wifi: "Nytt Wi-Fi"
   };
   return map[type] || "Ny QR-kod";
@@ -90,6 +93,18 @@ function escapeWifiValue(value) {
     .replace(/;/g, "\\;")
     .replace(/,/g, "\\,")
     .replace(/:/g, "\\:");
+}
+
+function escapeVCardValue(value) {
+  return String(value || "")
+    .replace(/\\/g, "\\\\")
+    .replace(/\n/g, "\\n")
+    .replace(/;/g, "\\;")
+    .replace(/,/g, "\\,");
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/[^\d+]/g, "");
 }
 
 function isValidUrl(value) {
@@ -123,6 +138,9 @@ function getTypeLabel(type) {
     text: "Text",
     phone: "Telefon",
     email: "E-post",
+    sms: "SMS",
+    whatsapp: "WhatsApp",
+    vcard: "Kontaktkort",
     wifi: "Wi-Fi"
   };
   return map[type] || type;
@@ -139,6 +157,9 @@ function escapeHtml(value) {
 
 function previewText(item) {
   if (item.type === "email") return item.fields.email || "";
+  if (item.type === "sms") return item.fields.smsPhone || "";
+  if (item.type === "whatsapp") return item.fields.waPhone || "";
+  if (item.type === "vcard") return item.fields.fullName || "";
   if (item.type === "wifi") return item.fields.ssid || "";
   if (item.type === "phone") return item.fields.phone || "";
   return item.fields.content || "";
@@ -203,545 +224,4 @@ function renderHistory() {
           <div class="history-item-top">
             <div>
               <span class="history-type">${getTypeLabel(item.type)}</span>
-              <h3 class="history-name">${escapeHtml(item.name || getDefaultName())}</h3>
-            </div>
-            <button class="history-star" data-action="favorite" data-id="${item.id}" type="button">
-              ${item.isFavorite ? "★" : "☆"}
-            </button>
-          </div>
-
-          <p class="history-text">${escapeHtml(previewText(item))}</p>
-          <p class="history-date">Sparad: ${escapeHtml(formatDate(item.createdAt))}</p>
-
-          <div class="history-actions">
-            <button data-action="load" data-id="${item.id}" type="button">Använd igen</button>
-            <button data-action="duplicate" data-id="${item.id}" type="button">Duplicera</button>
-            <button data-action="delete" data-id="${item.id}" type="button">Ta bort</button>
-          </div>
-        </div>
-      `;
-    })
-    .join("");
-}
-
-function renderFields() {
-  const type = typeEl.value;
-
-  if (type === "url") {
-    dynamicFieldsEl.innerHTML = `
-      <div class="field-group">
-        <label for="content">Länk</label>
-        <input id="content" type="text" placeholder="https://example.com" />
-      </div>
-    `;
-  } else if (type === "text") {
-    dynamicFieldsEl.innerHTML = `
-      <div class="field-group">
-        <label for="content">Text</label>
-        <textarea id="content" placeholder="Skriv din text här"></textarea>
-      </div>
-    `;
-  } else if (type === "phone") {
-    dynamicFieldsEl.innerHTML = `
-      <div class="field-group">
-        <label for="phone">Telefonnummer</label>
-        <input id="phone" type="text" placeholder="+46701234567" />
-      </div>
-    `;
-  } else if (type === "email") {
-    dynamicFieldsEl.innerHTML = `
-      <div class="field-group">
-        <label for="email">E-postadress</label>
-        <input id="email" type="email" placeholder="namn@example.com" />
-      </div>
-
-      <div class="field-group">
-        <label for="subject">Ämne</label>
-        <input id="subject" type="text" placeholder="Hej!" />
-      </div>
-
-      <div class="field-group">
-        <label for="message">Meddelande</label>
-        <textarea id="message" placeholder="Skriv ett meddelande"></textarea>
-      </div>
-    `;
-  } else if (type === "wifi") {
-    dynamicFieldsEl.innerHTML = `
-      <div class="field-group">
-        <label for="ssid">Wi-Fi-namn (SSID)</label>
-        <input id="ssid" type="text" placeholder="MittWiFi" />
-      </div>
-
-      <div class="field-group">
-        <label for="password">Lösenord</label>
-        <input id="password" type="password" placeholder="Lösenord" />
-      </div>
-
-      <div class="field-group">
-        <label for="encryption">Säkerhet</label>
-        <select id="encryption">
-          <option value="WPA">WPA/WPA2</option>
-          <option value="WEP">WEP</option>
-          <option value="nopass">Inget lösenord</option>
-        </select>
-      </div>
-
-      <div class="checkbox-row">
-        <input id="hiddenNetwork" type="checkbox" />
-        <label for="hiddenNetwork">Dolt nätverk</label>
-      </div>
-    `;
-  }
-
-  attachLiveListeners();
-}
-
-function getCurrentFields() {
-  const type = typeEl.value;
-
-  if (type === "url" || type === "text") {
-    return { content: document.getElementById("content")?.value || "" };
-  }
-
-  if (type === "phone") {
-    return { phone: document.getElementById("phone")?.value || "" };
-  }
-
-  if (type === "email") {
-    return {
-      email: document.getElementById("email")?.value || "",
-      subject: document.getElementById("subject")?.value || "",
-      message: document.getElementById("message")?.value || ""
-    };
-  }
-
-  if (type === "wifi") {
-    return {
-      ssid: document.getElementById("ssid")?.value || "",
-      password: document.getElementById("password")?.value || "",
-      encryption: document.getElementById("encryption")?.value || "WPA",
-      hiddenNetwork: document.getElementById("hiddenNetwork")?.checked || false
-    };
-  }
-
-  return {};
-}
-
-function buildQrData() {
-  const type = typeEl.value;
-
-  if (type === "url") {
-    const content = document.getElementById("content").value.trim();
-    if (!content) return { error: "" };
-    if (!isValidUrl(content)) {
-      return { error: "Ange en giltig URL, till exempel https://example.com" };
-    }
-    return { data: content };
-  }
-
-  if (type === "text") {
-    const content = document.getElementById("content").value.trim();
-    if (!content) return { error: "" };
-    return { data: content };
-  }
-
-  if (type === "phone") {
-    const phone = document.getElementById("phone").value.trim();
-    if (!phone) return { error: "" };
-    return { data: `tel:${phone}` };
-  }
-
-  if (type === "email") {
-    const email = document.getElementById("email").value.trim();
-    const subject = document.getElementById("subject").value.trim();
-    const message = document.getElementById("message").value.trim();
-
-    if (!email) return { error: "" };
-    if (!isValidEmail(email)) {
-      return { error: "Ange en giltig e-postadress." };
-    }
-
-    const params = new URLSearchParams();
-    if (subject) params.set("subject", subject);
-    if (message) params.set("body", message);
-
-    return {
-      data: params.toString()
-        ? `mailto:${email}?${params.toString()}`
-        : `mailto:${email}`
-    };
-  }
-
-  if (type === "wifi") {
-    const ssid = document.getElementById("ssid").value.trim();
-    const password = document.getElementById("password").value;
-    const encryption = document.getElementById("encryption").value;
-    const hidden = document.getElementById("hiddenNetwork").checked;
-
-    if (!ssid) return { error: "" };
-
-    const safeSsid = escapeWifiValue(ssid);
-    const safePassword = escapeWifiValue(password);
-
-    let wifiString = `WIFI:T:${encryption};S:${safeSsid};`;
-
-    if (encryption !== "nopass") {
-      wifiString += `P:${safePassword};`;
-    }
-
-    if (hidden) {
-      wifiString += `H:true;`;
-    }
-
-    wifiString += ";";
-
-    return { data: wifiString };
-  }
-
-  return { error: "Okänd QR-typ." };
-}
-
-function updateQr() {
-  errorEl.textContent = "";
-
-  const result = buildQrData();
-  const size = Number(sizeEl.value);
-  const foregroundColor = foregroundColorEl.value;
-  const backgroundColor = backgroundColorEl.value;
-
-  qrWrapper.style.background = backgroundColor;
-
-  if (!qrCode) {
-    createQrInstance();
-  }
-
-  qrCode.update({
-    width: size,
-    height: size,
-    data: result.data || " ",
-    image: logoImage,
-    dotsOptions: {
-      color: foregroundColor,
-      type: "rounded"
-    },
-    backgroundOptions: {
-      color: backgroundColor
-    },
-    cornersSquareOptions: {
-      type: "extra-rounded",
-      color: foregroundColor
-    },
-    cornersDotOptions: {
-      type: "dot",
-      color: foregroundColor
-    },
-    imageOptions: {
-      crossOrigin: "anonymous",
-      margin: 6,
-      imageSize: getLogoSize()
-    }
-  });
-
-  if (!result.data && result.error) {
-    errorEl.textContent = result.error;
-  }
-}
-
-async function downloadQr(extension) {
-  const result = buildQrData();
-
-  if (!result.data) {
-    errorEl.textContent = "Skapa en QR-kod först.";
-    return;
-  }
-
-  try {
-    await qrCode.download({
-      name: "qr-kod",
-      extension
-    });
-  } catch {
-    errorEl.textContent = `Kunde inte ladda ner ${extension.toUpperCase()}.`;
-  }
-}
-
-function getCanvasDataUrl() {
-  const canvas = qrContainer.querySelector("canvas");
-  if (!canvas) return null;
-  return canvas.toDataURL("image/png");
-}
-
-async function shareQr() {
-  const result = buildQrData();
-
-  if (!result.data) {
-    errorEl.textContent = "Skapa en QR-kod först.";
-    return;
-  }
-
-  const source = getCanvasDataUrl();
-
-  if (!source) {
-    errorEl.textContent = "Kunde inte skapa bild för delning.";
-    return;
-  }
-
-  try {
-    const response = await fetch(source);
-    const blob = await response.blob();
-    const file = new File([blob], "qr-kod.png", { type: "image/png" });
-
-    if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
-        title: "QR Studio",
-        text: "Här är min QR-kod",
-        files: [file]
-      });
-      return;
-    }
-
-    if (navigator.share) {
-      await navigator.share({
-        title: "QR Studio",
-        text: "Här är min QR-kod"
-      });
-      return;
-    }
-
-    errorEl.textContent = "Delning stöds inte här.";
-  } catch {
-    errorEl.textContent = "Kunde inte dela QR-koden.";
-  }
-}
-
-function buildHistoryItem() {
-  const result = buildQrData();
-
-  if (!result.data) {
-    errorEl.textContent = "Fyll i giltig information innan du sparar.";
-    return null;
-  }
-
-  return {
-    id: generateId(),
-    name: qrNameEl.value.trim() || getDefaultName(),
-    type: typeEl.value,
-    fields: getCurrentFields(),
-    settings: {
-      size: Number(sizeEl.value),
-      foregroundColor: foregroundColorEl.value,
-      backgroundColor: backgroundColorEl.value,
-      logoSize: Number(logoSizeEl.value)
-    },
-    createdAt: Date.now(),
-    isFavorite: false
-  };
-}
-
-function saveCurrentToHistory() {
-  const item = buildHistoryItem();
-  if (!item) return;
-
-  const history = getHistory();
-  history.unshift(item);
-  setHistory(history.slice(0, 50));
-  renderHistory();
-  errorEl.textContent = "";
-}
-
-function findHistoryItemById(id) {
-  return getHistory().find((item) => item.id === id);
-}
-
-function loadHistoryItem(id) {
-  const item = findHistoryItemById(id);
-  if (!item) return;
-
-  qrNameEl.value = item.name || "";
-  typeEl.value = item.type;
-  renderFields();
-
-  sizeEl.value = item.settings.size;
-  sizeValueEl.textContent = item.settings.size;
-  foregroundColorEl.value = item.settings.foregroundColor;
-  backgroundColorEl.value = item.settings.backgroundColor;
-
-  if (item.settings.logoSize) {
-    logoSizeEl.value = item.settings.logoSize;
-    logoSizeValueEl.textContent = item.settings.logoSize;
-  }
-
-  if (item.type === "url" || item.type === "text") {
-    document.getElementById("content").value = item.fields.content || "";
-  } else if (item.type === "phone") {
-    document.getElementById("phone").value = item.fields.phone || "";
-  } else if (item.type === "email") {
-    document.getElementById("email").value = item.fields.email || "";
-    document.getElementById("subject").value = item.fields.subject || "";
-    document.getElementById("message").value = item.fields.message || "";
-  } else if (item.type === "wifi") {
-    document.getElementById("ssid").value = item.fields.ssid || "";
-    document.getElementById("password").value = item.fields.password || "";
-    document.getElementById("encryption").value =
-      item.fields.encryption || "WPA";
-    document.getElementById("hiddenNetwork").checked =
-      !!item.fields.hiddenNetwork;
-  }
-
-  updateQr();
-}
-
-function duplicateHistoryItem(id) {
-  const item = findHistoryItemById(id);
-  if (!item) return;
-
-  const history = getHistory();
-
-  const duplicated = {
-    ...item,
-    id: generateId(),
-    name: `${item.name || getDefaultName()} (kopia)`,
-    createdAt: Date.now(),
-    isFavorite: false
-  };
-
-  history.unshift(duplicated);
-  setHistory(history.slice(0, 50));
-  renderHistory();
-}
-
-function deleteHistoryItem(id) {
-  const history = getHistory().filter((item) => item.id !== id);
-  setHistory(history);
-  renderHistory();
-}
-
-function toggleFavorite(id) {
-  const history = getHistory().map((item) => {
-    if (item.id === id) {
-      return {
-        ...item,
-        isFavorite: !item.isFavorite
-      };
-    }
-    return item;
-  });
-
-  setHistory(history);
-  renderHistory();
-}
-
-function clearHistory() {
-  localStorage.removeItem(HISTORY_KEY);
-  renderHistory();
-}
-
-function attachLiveListeners() {
-  const inputs = dynamicFieldsEl.querySelectorAll("input, textarea, select");
-
-  inputs.forEach((input) => {
-    input.addEventListener("input", updateQr);
-    input.addEventListener("change", updateQr);
-  });
-}
-
-function updateNetworkBadge() {
-  if (navigator.onLine) {
-    networkBadgeEl.textContent = "Online";
-    networkBadgeEl.className = "network-badge online";
-  } else {
-    networkBadgeEl.textContent = "Offline";
-    networkBadgeEl.className = "network-badge offline";
-  }
-}
-
-function registerServiceWorker() {
-  if ("serviceWorker" in navigator) {
-    navigator.serviceWorker.register("./sw.js").catch(() => {});
-  }
-}
-
-logoUploadEl.addEventListener("change", () => {
-  const file = logoUploadEl.files?.[0];
-
-  if (!file) {
-    logoImage = null;
-    updateQr();
-    return;
-  }
-
-  const reader = new FileReader();
-
-  reader.onload = (event) => {
-    logoImage = event.target.result;
-    updateQr();
-  };
-
-  reader.readAsDataURL(file);
-});
-
-removeLogoBtn.addEventListener("click", () => {
-  logoImage = null;
-  logoUploadEl.value = "";
-  updateQr();
-});
-
-logoSizeEl.addEventListener("input", () => {
-  logoSizeValueEl.textContent = logoSizeEl.value;
-  updateQr();
-});
-
-sizeEl.addEventListener("input", () => {
-  sizeValueEl.textContent = sizeEl.value;
-  updateQr();
-});
-
-foregroundColorEl.addEventListener("input", updateQr);
-backgroundColorEl.addEventListener("input", updateQr);
-
-typeEl.addEventListener("change", () => {
-  errorEl.textContent = "";
-  renderFields();
-  updateQr();
-});
-
-saveBtn.addEventListener("click", saveCurrentToHistory);
-downloadBtn.addEventListener("click", () => downloadQr("png"));
-downloadSvgBtn.addEventListener("click", () => downloadQr("svg"));
-shareBtn.addEventListener("click", shareQr);
-clearHistoryBtn.addEventListener("click", clearHistory);
-
-historySearchEl.addEventListener("input", renderHistory);
-historyFilterEl.addEventListener("change", renderHistory);
-
-historyListEl.addEventListener("click", (event) => {
-  const button = event.target.closest("button");
-  if (!button) return;
-
-  const action = button.dataset.action;
-  const id = button.dataset.id;
-
-  if (!id) return;
-
-  if (action === "load") loadHistoryItem(id);
-  if (action === "duplicate") duplicateHistoryItem(id);
-  if (action === "delete") deleteHistoryItem(id);
-  if (action === "favorite") toggleFavorite(id);
-});
-
-window.addEventListener("online", updateNetworkBadge);
-window.addEventListener("offline", updateNetworkBadge);
-
-document.addEventListener("keydown", (event) => {
-  if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
-    updateQr();
-  }
-});
-
-logoSizeValueEl.textContent = logoSizeEl.value;
-renderFields();
-renderHistory();
-createQrInstance();
-updateQr();
-updateNetworkBadge();
-registerServiceWorker();
+              <h3 class="history-name

@@ -88,6 +88,16 @@ function openConfirmModal({
   confirmText = "Fortsätt",
   cancelText = "Avbryt"
 }) {
+  if (
+    !confirmModalEl ||
+    !confirmModalTitleEl ||
+    !confirmModalMessageEl ||
+    !confirmCancelBtn ||
+    !confirmOkBtn
+  ) {
+    return Promise.resolve(window.confirm(message));
+  }
+
   confirmModalTitleEl.textContent = title;
   confirmModalMessageEl.textContent = message;
   confirmOkBtn.textContent = confirmText;
@@ -107,6 +117,8 @@ function openConfirmModal({
 }
 
 function closeConfirmModal(result) {
+  if (!confirmModalEl) return;
+
   confirmModalEl.hidden = true;
   document.body.style.overflow = "";
 
@@ -1624,14 +1636,53 @@ historyListEl.addEventListener("click", async (event) => {
   if (action === "favorite") await toggleFavorite(id);
 });
 
-confirmCancelBtn.addEventListener("click", () => closeConfirmModal(false));
-confirmOkBtn.addEventListener("click", () => closeConfirmModal(true));
+function bindPress(element, handler) {
+  if (!element) return;
 
-confirmModalEl.addEventListener("click", (event) => {
-  if (event.target === confirmModalEl) {
-    closeConfirmModal(false);
-  }
-});
+  let handled = false;
+
+  const run = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+
+    if (handled) return;
+    handled = true;
+
+    handler();
+
+    window.setTimeout(() => {
+      handled = false;
+    }, 250);
+  };
+
+  element.addEventListener("click", run);
+  element.addEventListener("touchend", run, { passive: false });
+  element.addEventListener("pointerup", run);
+}
+
+bindPress(confirmCancelBtn, () => closeConfirmModal(false));
+bindPress(confirmOkBtn, () => closeConfirmModal(true));
+
+if (confirmModalEl) {
+  confirmModalEl.addEventListener("click", (event) => {
+    if (event.target === confirmModalEl) {
+      closeConfirmModal(false);
+    }
+  });
+
+  confirmModalEl.addEventListener(
+    "touchend",
+    (event) => {
+      if (event.target === confirmModalEl) {
+        event.preventDefault();
+        closeConfirmModal(false);
+      }
+    },
+    { passive: false }
+  );
+}
 
 document.addEventListener("keydown", (event) => {
   if (!confirmModalEl.hidden && event.key === "Escape") {

@@ -1685,7 +1685,7 @@ if (confirmModalEl) {
 }
 
 document.addEventListener("keydown", (event) => {
-  if (!confirmModalEl.hidden && event.key === "Escape") {
+  if (confirmModalEl && !confirmModalEl.hidden && event.key === "Escape") {
     closeConfirmModal(false);
     return;
   }

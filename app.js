@@ -61,6 +61,11 @@ let currentUser = null;
 let editingId = null;
 let activeConfirmResolve = null;
 let lastFocusedElement = null;
+let autoSaveTimer = null;
+let autoSaveInFlight = false;
+let autoSaveFlashTimer = null;
+let suspendAutoSave = false;
+const AUTO_SAVE_DELAY = 900;
 
 function setButtonLoading(button, isLoading, loadingText, defaultText) {
   if (!button) return;
@@ -80,6 +85,143 @@ function setStatusText(element, text = "") {
   if (!element) return;
   element.textContent = text;
   element.hidden = !text;
+}
+
+function updateSaveBadgeState(message, state = "") {
+  if (!saveModeBadgeEl) return;
+  saveModeBadgeEl.textContent = message;
+  saveModeBadgeEl.classList.remove("is-saving", "is-saved", "is-pending", "is-error");
+  if (state) {
+    saveModeBadgeEl.classList.add(`is-${state}`);
+  }
+}
+
+function clearAutoSaveFlashTimer() {
+  if (autoSaveFlashTimer) {
+    window.clearTimeout(autoSaveFlashTimer);
+    autoSaveFlashTimer = null;
+  }
+}
+
+function restoreSaveBadgeState() {
+  clearAutoSaveFlashTimer();
+  updateSaveModeBadge();
+  if (saveModeBadgeEl) {
+    saveModeBadgeEl.classList.remove("is-saving", "is-saved", "is-pending", "is-error");
+  }
+}
+
+function flashAutoSaveBadge(message, state = "saved", duration = 1800) {
+  updateSaveBadgeState(message, state);
+  clearAutoSaveFlashTimer();
+  autoSaveFlashTimer = window.setTimeout(() => {
+    restoreSaveBadgeState();
+  }, duration);
+}
+
+function getPreviewDataUrl() {
+  return getCanvasDataUrl() || "";
+}
+
+function queueAutoSave() {
+  if (!editingId || suspendAutoSave) return;
+
+  if (autoSaveTimer) {
+    window.clearTimeout(autoSaveTimer);
+  }
+
+  updateSaveBadgeState("Ändringar väntar...", "pending");
+
+  autoSaveTimer = window.setTimeout(() => {
+    performAutoSave();
+  }, AUTO_SAVE_DELAY);
+}
+
+async function performAutoSave() {
+  if (!editingId || suspendAutoSave || autoSaveInFlight) return;
+
+  const result = buildQrData();
+  if (!result.data) return;
+
+  const item = buildHistoryItem();
+  if (!item) return;
+
+  autoSaveInFlight = true;
+  updateSaveBadgeState("Sparar ändringar...", "saving");
+
+  try {
+    if (!currentUser) {
+      const history = getHistory();
+      const existing = history.find((entry) => entry.id === editingId);
+      if (!existing) {
+        restoreSaveBadgeState();
+        autoSaveInFlight = false;
+        return;
+      }
+
+      const updated = history.map((entry) =>
+        entry.id === editingId
+          ? {
+              ...entry,
+              name: item.name,
+              type: item.type,
+              fields: item.fields,
+              settings: item.settings,
+              updatedAt: Date.now()
+            }
+          : entry
+      );
+
+      setHistory(updated);
+      renderHistory();
+      flashAutoSaveBadge("Autosparad", "saved");
+      autoSaveInFlight = false;
+      return;
+    }
+
+    const existing = findHistoryItemById(editingId);
+    const payload = {
+      name: item.name,
+      type: item.type,
+      fields: item.fields,
+      settings: item.settings,
+      is_favorite: existing?.isFavorite || false,
+      updated_at: new Date().toISOString()
+    };
+
+    const optimisticHistory = getHistory().map((entry) =>
+      entry.id === editingId
+        ? {
+            ...entry,
+            name: item.name,
+            type: item.type,
+            fields: item.fields,
+            settings: item.settings,
+            updatedAt: Date.now()
+          }
+        : entry
+    );
+    setHistory(optimisticHistory);
+    renderHistory();
+
+    const { error } = await supabase
+      .from("qr_codes")
+      .update(payload)
+      .eq("id", editingId);
+
+    if (error) throw error;
+
+    flashAutoSaveBadge("Autosparad", "saved");
+    await loadCloudHistory();
+  } catch (error) {
+    updateSaveBadgeState("Kunde inte autospara", "error");
+    clearAutoSaveFlashTimer();
+    autoSaveFlashTimer = window.setTimeout(() => {
+      restoreSaveBadgeState();
+    }, 2400);
+  } finally {
+    autoSaveInFlight = false;
+  }
 }
 
 function openConfirmModal({
@@ -201,10 +343,15 @@ function setEditMode(id = null) {
     editBannerTextEl.textContent = "Du redigerar en sparad QR-kod.";
   }
 
-  updateSaveModeBadge();
+  restoreSaveBadgeState();
 }
 
 function resetFormForNewItem() {
+  suspendAutoSave = true;
+  if (autoSaveTimer) {
+    window.clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
   qrNameEl.value = "";
   typeEl.value = "url";
   sizeEl.value = 220;
@@ -219,6 +366,8 @@ function resetFormForNewItem() {
   setEditMode(null);
   renderFields();
   updateQr();
+  suspendAutoSave = false;
+  restoreSaveBadgeState();
 }
 
 function getLogoSize() {
@@ -418,35 +567,46 @@ function renderHistory() {
 
   historyListEl.innerHTML = items
     .map((item) => {
+      const previewMarkup = item.settings?.previewDataUrl
+        ? `<div class="history-preview"><img src="${item.settings.previewDataUrl}" alt="Preview för ${escapeHtml(item.name || "QR-kod")}" loading="lazy"></div>`
+        : `<div class="history-preview history-preview-placeholder">QR</div>`;
+
       return `
         <div class="history-item ${item.isFavorite ? "is-favorite" : ""}">
-          <div class="history-item-top">
-            <div>
-              <span class="history-type">${getTypeLabel(item.type)}</span>
-              <h3 class="history-name">${escapeHtml(item.name || "Ny QR-kod")}</h3>
+          <div class="history-main-row">
+            ${previewMarkup}
+
+            <div class="history-content">
+              <div class="history-item-top">
+                <div>
+                  <span class="history-type">${getTypeLabel(item.type)}</span>
+                  <h3 class="history-name">${escapeHtml(item.name || "Ny QR-kod")}</h3>
+                </div>
+                <button class="history-star" data-action="favorite" data-id="${item.id}" type="button">
+                  ${item.isFavorite ? "★" : "☆"}
+                </button>
+              </div>
+
+              <p class="history-text">${escapeHtml(previewText(item))}</p>
+              <p class="history-date">Skapad: ${escapeHtml(formatDate(item.createdAt))}</p>
+              <p class="history-date">Senast uppdaterad: ${escapeHtml(
+                formatDate(item.updatedAt || item.createdAt)
+              )}</p>
+
+              <div class="history-actions">
+                <button data-action="load" data-id="${item.id}" type="button">Använd igen</button>
+                <button data-action="edit" data-id="${item.id}" type="button">Redigera</button>
+                <button data-action="duplicate" data-id="${item.id}" type="button">Duplicera</button>
+                <button data-action="delete" data-id="${item.id}" type="button">Ta bort</button>
+              </div>
             </div>
-            <button class="history-star" data-action="favorite" data-id="${item.id}" type="button">
-              ${item.isFavorite ? "★" : "☆"}
-            </button>
-          </div>
-
-          <p class="history-text">${escapeHtml(previewText(item))}</p>
-          <p class="history-date">Skapad: ${escapeHtml(formatDate(item.createdAt))}</p>
-          <p class="history-date">Senast uppdaterad: ${escapeHtml(
-            formatDate(item.updatedAt || item.createdAt)
-          )}</p>
-
-          <div class="history-actions">
-            <button data-action="load" data-id="${item.id}" type="button">Använd igen</button>
-            <button data-action="edit" data-id="${item.id}" type="button">Redigera</button>
-            <button data-action="duplicate" data-id="${item.id}" type="button">Duplicera</button>
-            <button data-action="delete" data-id="${item.id}" type="button">Ta bort</button>
           </div>
         </div>
       `;
     })
     .join("");
 }
+
 
 function renderFields() {
   const type = typeEl.value;
@@ -897,7 +1057,8 @@ function buildHistoryItem() {
       size: Number(sizeEl.value),
       foregroundColor: foregroundColorEl.value,
       backgroundColor: backgroundColorEl.value,
-      logoSize: Number(logoSizeEl.value)
+      logoSize: Number(logoSizeEl.value),
+      previewDataUrl: getPreviewDataUrl()
     },
     createdAt: Date.now(),
     updatedAt: Date.now(),
@@ -927,6 +1088,11 @@ function findHistoryItemById(id) {
 }
 
 function applyItemToForm(item) {
+  suspendAutoSave = true;
+  if (autoSaveTimer) {
+    window.clearTimeout(autoSaveTimer);
+    autoSaveTimer = null;
+  }
   qrNameEl.value = item.name || "";
   typeEl.value = item.type;
   renderFields();
@@ -974,6 +1140,8 @@ function applyItemToForm(item) {
     : "Du redigerar en sparad QR-kod.";
 
   updateQr();
+  suspendAutoSave = false;
+  restoreSaveBadgeState();
 }
 
 function startEditingItem(id) {
@@ -1426,8 +1594,14 @@ function attachLiveListeners() {
   const inputs = dynamicFieldsEl.querySelectorAll("input, textarea, select");
 
   inputs.forEach((input) => {
-    input.addEventListener("input", updateQr);
-    input.addEventListener("change", updateQr);
+    input.addEventListener("input", () => {
+      updateQr();
+      queueAutoSave();
+    });
+    input.addEventListener("change", () => {
+      updateQr();
+      queueAutoSave();
+    });
   });
 }
 
@@ -1554,6 +1728,7 @@ logoUploadEl.addEventListener("change", () => {
   reader.onload = (event) => {
     logoImage = event.target.result;
     updateQr();
+    queueAutoSave();
     showToast("Logotyp uppladdad", "success");
   };
 
@@ -1564,6 +1739,7 @@ removeLogoBtn.addEventListener("click", () => {
   logoImage = null;
   logoUploadEl.value = "";
   updateQr();
+  queueAutoSave();
   showToast("Logotyp borttagen", "success");
 });
 
@@ -1575,11 +1751,13 @@ cancelEditBtn.addEventListener("click", () => {
 logoSizeEl.addEventListener("input", () => {
   logoSizeValueEl.textContent = logoSizeEl.value;
   updateQr();
+  queueAutoSave();
 });
 
 sizeEl.addEventListener("input", () => {
   sizeValueEl.textContent = sizeEl.value;
   updateQr();
+  queueAutoSave();
 });
 
 qrNameEl.addEventListener("input", () => {
@@ -1587,11 +1765,18 @@ qrNameEl.addEventListener("input", () => {
     editBannerTextEl.textContent = qrNameEl.value
       ? `Du redigerar: ${qrNameEl.value}`
       : "Du redigerar en sparad QR-kod.";
+    queueAutoSave();
   }
 });
 
-foregroundColorEl.addEventListener("input", updateQr);
-backgroundColorEl.addEventListener("input", updateQr);
+foregroundColorEl.addEventListener("input", () => {
+  updateQr();
+  queueAutoSave();
+});
+backgroundColorEl.addEventListener("input", () => {
+  updateQr();
+  queueAutoSave();
+});
 
 typeEl.addEventListener("change", () => {
   errorEl.textContent = "";
@@ -1636,23 +1821,17 @@ historyListEl.addEventListener("click", async (event) => {
   if (action === "favorite") await toggleFavorite(id);
 });
 
-function bindModalButton(button, result) {
-  if (!button) return;
-
-  const handler = (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-    closeConfirmModal(result);
-  };
-
-  button.addEventListener("click", handler);
-  button.addEventListener("touchend", handler, { passive: false });
+if (confirmCancelBtn) {
+  confirmCancelBtn.addEventListener("click", () => {
+    closeConfirmModal(false);
+  });
 }
 
-bindModalButton(confirmCancelBtn, false);
-bindModalButton(confirmOkBtn, true);
+if (confirmOkBtn) {
+  confirmOkBtn.addEventListener("click", () => {
+    closeConfirmModal(true);
+  });
+}
 
 if (confirmModalEl) {
   confirmModalEl.addEventListener("click", (event) => {
@@ -1660,17 +1839,6 @@ if (confirmModalEl) {
       closeConfirmModal(false);
     }
   });
-
-  confirmModalEl.addEventListener(
-    "touchend",
-    (event) => {
-      if (event.target === confirmModalEl) {
-        event.preventDefault();
-        closeConfirmModal(false);
-      }
-    },
-    { passive: false }
-  );
 }
 
 document.addEventListener("keydown", (event) => {

@@ -1,5 +1,7 @@
 const SUPABASE_URL = "https://msgcthdjhpjiuffcvuxb.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1zZ2N0aGRqaHBqaXVmZmN2dXhiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM2MTc3NzYsImV4cCI6MjA4OTE5Mzc3Nn0.HFr-tYME8WhcQYcZ1o25bIj-7aHBu7IYN8a3hn66D0s";
+const SUPABASE_URL = "DIN_SUPABASE_URL";
+const SUPABASE_ANON_KEY = "DIN_SUPABASE_ANON_KEY";
 const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 const typeEl = document.getElementById("type");
@@ -32,6 +34,7 @@ const signUpBtn = document.getElementById("signUpBtn");
 const signInBtn = document.getElementById("signInBtn");
 const signOutBtn = document.getElementById("signOutBtn");
 const importLocalBtn = document.getElementById("importLocalBtn");
+const importAndClearLocalBtn = document.getElementById("importAndClearLocalBtn");
 const authLoggedOutEl = document.getElementById("authLoggedOut");
 const authLoggedInEl = document.getElementById("authLoggedIn");
 const userEmailEl = document.getElementById("userEmail");
@@ -229,7 +232,8 @@ function renderHistory() {
   const items = getFilteredHistory();
 
   if (!items.length) {
-    historyListEl.innerHTML = `<p class="empty-state">Ingen historik matchar din sökning.</p>`;
+    historyListEl.innerHTML =
+      '<p class="empty-state">Ingen historik matchar din sökning.</p>';
     return;
   }
 
@@ -761,8 +765,10 @@ function applyItemToForm(item) {
   } else if (item.type === "wifi") {
     document.getElementById("ssid").value = item.fields.ssid || "";
     document.getElementById("password").value = item.fields.password || "";
-    document.getElementById("encryption").value = item.fields.encryption || "WPA";
-    document.getElementById("hiddenNetwork").checked = !!item.fields.hiddenNetwork;
+    document.getElementById("encryption").value =
+      item.fields.encryption || "WPA";
+    document.getElementById("hiddenNetwork").checked =
+      !!item.fields.hiddenNetwork;
   }
 
   updateQr();
@@ -805,7 +811,7 @@ function makeImportFingerprint(item) {
   });
 }
 
-async function importLocalHistoryToCloud() {
+async function importLocalHistoryToCloud(options = { clearAfterImport: false }) {
   if (!currentUser) {
     authMessageEl.textContent = "Logga in först.";
     return;
@@ -854,21 +860,41 @@ async function importLocalHistoryToCloud() {
       is_favorite: !!item.isFavorite
     }));
 
-  if (!rowsToInsert.length) {
+  if (rowsToInsert.length) {
+    const { error } = await supabase.from("qr_codes").insert(rowsToInsert);
+
+    if (error) {
+      authMessageEl.textContent = "Kunde inte importera lokal historik.";
+      return;
+    }
+  }
+
+  if (options.clearAfterImport) {
+    localStorage.removeItem(HISTORY_KEY);
+  }
+
+  if (!rowsToInsert.length && options.clearAfterImport) {
+    authMessageEl.textContent =
+      "Ingen ny lokal historik behövde importeras. Lokal historik rensades.";
+  } else if (!rowsToInsert.length) {
     authMessageEl.textContent = "All lokal historik finns redan i kontot.";
-    await loadCloudHistory();
-    return;
+  } else if (options.clearAfterImport) {
+    authMessageEl.textContent = `${rowsToInsert.length} poster importerades och lokal historik rensades.`;
+  } else {
+    authMessageEl.textContent = `${rowsToInsert.length} poster importerades till ditt konto.`;
   }
 
-  const { error } = await supabase.from("qr_codes").insert(rowsToInsert);
-
-  if (error) {
-    authMessageEl.textContent = "Kunde inte importera lokal historik.";
-    return;
-  }
-
-  authMessageEl.textContent = `${rowsToInsert.length} poster importerades till ditt konto.`;
   await loadCloudHistory();
+}
+
+async function importAndClearLocalHistory() {
+  const confirmed = window.confirm(
+    "Vill du importera lokal historik till ditt konto och sedan rensa den lokala historiken på enheten?"
+  );
+
+  if (!confirmed) return;
+
+  await importLocalHistoryToCloud({ clearAfterImport: true });
 }
 
 async function saveCurrent() {
@@ -932,7 +958,10 @@ async function toggleFavorite(id) {
 
   const { error } = await supabase
     .from("qr_codes")
-    .update({ is_favorite: !item.isFavorite, updated_at: new Date().toISOString() })
+    .update({
+      is_favorite: !item.isFavorite,
+      updated_at: new Date().toISOString()
+    })
     .eq("id", id);
 
   if (error) {
@@ -1141,7 +1170,15 @@ typeEl.addEventListener("change", () => {
 signUpBtn.addEventListener("click", signUp);
 signInBtn.addEventListener("click", signIn);
 signOutBtn.addEventListener("click", signOut);
-importLocalBtn.addEventListener("click", importLocalHistoryToCloud);
+
+importLocalBtn.addEventListener("click", () =>
+  importLocalHistoryToCloud({ clearAfterImport: false })
+);
+
+importAndClearLocalBtn.addEventListener(
+  "click",
+  importAndClearLocalHistory
+);
 
 saveBtn.addEventListener("click", saveCurrent);
 downloadBtn.addEventListener("click", () => downloadQr("png"));
@@ -1186,4 +1223,5 @@ createQrInstance();
 updateQr();
 updateNetworkBadge();
 registerServiceWorker();
+refreshAuthState();registerServiceWorker();
 refreshAuthState();

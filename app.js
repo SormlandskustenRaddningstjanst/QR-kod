@@ -17,6 +17,10 @@ const removeLogoBtn = document.getElementById("removeLogoBtn");
 const saveBtn = document.getElementById("saveBtn");
 const cancelEditBtn = document.getElementById("cancelEditBtn");
 const editBannerEl = document.getElementById("editBanner");
+const editBannerTextEl = document.getElementById("editBannerText");
+const saveModeBadgeEl = document.getElementById("saveModeBadge");
+const previewEmptyStateEl = document.getElementById("previewEmptyState");
+const toastContainerEl = document.getElementById("toastContainer");
 const downloadBtn = document.getElementById("downloadBtn");
 const downloadSvgBtn = document.getElementById("downloadSvgBtn");
 const shareBtn = document.getElementById("shareBtn");
@@ -41,12 +45,63 @@ const authLoggedInEl = document.getElementById("authLoggedIn");
 const userEmailEl = document.getElementById("userEmail");
 const authMessageEl = document.getElementById("authMessage");
 
-const HISTORY_KEY = "qr_studio_history_v12";
+const HISTORY_KEY = "qr_studio_history_v13";
 
 let qrCode = null;
 let logoImage = null;
 let currentUser = null;
 let editingId = null;
+let toastTimeouts = [];
+
+function showToast(message, type = "success") {
+  const toast = document.createElement("div");
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+
+  toastContainerEl.appendChild(toast);
+
+  requestAnimationFrame(() => {
+    toast.classList.add("show");
+  });
+
+  const timeout = window.setTimeout(() => {
+    toast.classList.remove("show");
+    window.setTimeout(() => {
+      toast.remove();
+    }, 220);
+  }, 2600);
+
+  toastTimeouts.push(timeout);
+}
+
+function setInlineError(message) {
+  errorEl.textContent = message || "";
+  if (message) showToast(message, "error");
+}
+
+function setAuthMessage(message, type = "info") {
+  authMessageEl.textContent = message || "";
+  if (message) showToast(message, type);
+}
+
+function updateSaveModeBadge() {
+  if (editingId && currentUser) {
+    saveModeBadgeEl.textContent = "Redigerar molnsparad QR-kod";
+    return;
+  }
+
+  if (editingId && !currentUser) {
+    saveModeBadgeEl.textContent = "Redigerar lokalt sparad QR-kod";
+    return;
+  }
+
+  if (currentUser) {
+    saveModeBadgeEl.textContent = "Sparas i ditt konto";
+    return;
+  }
+
+  saveModeBadgeEl.textContent = "Sparas lokalt på enheten";
+}
 
 function setEditMode(id = null) {
   editingId = id;
@@ -55,11 +110,17 @@ function setEditMode(id = null) {
     saveBtn.textContent = "Uppdatera sparad QR-kod";
     cancelEditBtn.hidden = false;
     editBannerEl.hidden = false;
+    editBannerTextEl.textContent = qrNameEl.value
+      ? `Du redigerar: ${qrNameEl.value}`
+      : "Du redigerar en sparad QR-kod.";
   } else {
-    saveBtn.textContent = "Spara i historik";
+    saveBtn.textContent = "Spara ny QR-kod";
     cancelEditBtn.hidden = true;
     editBannerEl.hidden = true;
+    editBannerTextEl.textContent = "Du redigerar en sparad QR-kod.";
   }
+
+  updateSaveModeBadge();
 }
 
 function resetFormForNewItem() {
@@ -81,6 +142,22 @@ function resetFormForNewItem() {
 
 function getLogoSize() {
   return Number(logoSizeEl.value) / 100;
+}
+
+function setButtonsDisabled(disabled) {
+  [
+    saveBtn,
+    downloadBtn,
+    downloadSvgBtn,
+    shareBtn,
+    signUpBtn,
+    signInBtn,
+    signOutBtn,
+    importLocalBtn,
+    importAndClearLocalBtn
+  ].forEach((button) => {
+    if (button) button.disabled = disabled;
+  });
 }
 
 function createQrInstance() {
@@ -265,8 +342,12 @@ function renderHistory() {
   const items = getFilteredHistory();
 
   if (!items.length) {
-    historyListEl.innerHTML =
-      '<p class="empty-state">Ingen historik matchar din sökning.</p>';
+    historyListEl.innerHTML = `
+      <div class="history-empty-state">
+        <strong>Ingen historik ännu</strong>
+        <p>Skapa och spara din första QR-kod för att se den här.</p>
+      </div>
+    `;
     return;
   }
 
@@ -615,6 +696,10 @@ function buildQrData() {
   return { error: "Okänd QR-typ." };
 }
 
+function updatePreviewEmptyState(show) {
+  previewEmptyStateEl.hidden = !show;
+}
+
 function updateQr() {
   errorEl.textContent = "";
 
@@ -654,8 +739,10 @@ function updateQr() {
     }
   });
 
+  updatePreviewEmptyState(!result.data);
+
   if (!result.data && result.error) {
-    errorEl.textContent = result.error;
+    setInlineError(result.error);
   }
 }
 
@@ -663,7 +750,7 @@ async function downloadQr(extension) {
   const result = buildQrData();
 
   if (!result.data) {
-    errorEl.textContent = "Skapa en QR-kod först.";
+    setInlineError("Skapa en QR-kod först.");
     return;
   }
 
@@ -672,8 +759,9 @@ async function downloadQr(extension) {
       name: "qr-kod",
       extension
     });
+    showToast(`Nedladdning startad (${extension.toUpperCase()})`, "success");
   } catch {
-    errorEl.textContent = `Kunde inte ladda ner ${extension.toUpperCase()}.`;
+    setInlineError(`Kunde inte ladda ner ${extension.toUpperCase()}.`);
   }
 }
 
@@ -687,13 +775,13 @@ async function shareQr() {
   const result = buildQrData();
 
   if (!result.data) {
-    errorEl.textContent = "Skapa en QR-kod först.";
+    setInlineError("Skapa en QR-kod först.");
     return;
   }
 
   const source = getCanvasDataUrl();
   if (!source) {
-    errorEl.textContent = "Kunde inte skapa bild för delning.";
+    setInlineError("Kunde inte skapa bild för delning.");
     return;
   }
 
@@ -708,6 +796,7 @@ async function shareQr() {
         text: "Här är min QR-kod",
         files: [file]
       });
+      showToast("QR-koden delades", "success");
       return;
     }
 
@@ -716,12 +805,13 @@ async function shareQr() {
         title: "QR Studio",
         text: "Här är min QR-kod"
       });
+      showToast("Delning öppnad", "success");
       return;
     }
 
-    errorEl.textContent = "Delning stöds inte här.";
+    setInlineError("Delning stöds inte här.");
   } catch {
-    errorEl.textContent = "Kunde inte dela QR-koden.";
+    setInlineError("Kunde inte dela QR-koden.");
   }
 }
 
@@ -729,7 +819,7 @@ function buildHistoryItem() {
   const result = buildQrData();
 
   if (!result.data) {
-    errorEl.textContent = "Fyll i giltig information innan du sparar.";
+    setInlineError("Fyll i giltig information innan du sparar.");
     return null;
   }
 
@@ -814,6 +904,10 @@ function applyItemToForm(item) {
       !!item.fields.hiddenNetwork;
   }
 
+  editBannerTextEl.textContent = item.name
+    ? `Du redigerar: ${item.name}`
+    : "Du redigerar en sparad QR-kod.";
+
   updateQr();
 }
 
@@ -823,6 +917,7 @@ function startEditingItem(id) {
 
   setEditMode(id);
   applyItemToForm(item);
+  showToast("Redigeringsläge aktiverat", "info");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -848,6 +943,7 @@ function saveCurrentToLocal() {
     renderHistory();
     errorEl.textContent = "";
     setEditMode(null);
+    showToast("QR-koden uppdaterades lokalt", "success");
     return;
   }
 
@@ -855,6 +951,7 @@ function saveCurrentToLocal() {
   setHistory(history.slice(0, 50));
   renderHistory();
   errorEl.textContent = "";
+  showToast("QR-koden sparades lokalt", "success");
 }
 
 async function loadCloudHistory() {
@@ -866,7 +963,7 @@ async function loadCloudHistory() {
     .order("updated_at", { ascending: false });
 
   if (error) {
-    authMessageEl.textContent = "Kunde inte läsa sparade QR-koder.";
+    setAuthMessage("Kunde inte läsa sparade QR-koder.", "error");
     return;
   }
 
@@ -885,17 +982,17 @@ function makeImportFingerprint(item) {
 
 async function importLocalHistoryToCloud(options = { clearAfterImport: false }) {
   if (!currentUser) {
-    authMessageEl.textContent = "Logga in först.";
+    setAuthMessage("Logga in först.", "error");
     return;
   }
 
   const localItems = getHistory();
   if (!localItems.length) {
-    authMessageEl.textContent = "Ingen lokal historik att importera.";
+    setAuthMessage("Ingen lokal historik att importera.", "info");
     return;
   }
 
-  authMessageEl.textContent = "Importerar lokal historik...";
+  setButtonsDisabled(true);
 
   const { data: existingData, error: existingError } = await supabase
     .from("qr_codes")
@@ -903,7 +1000,8 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     .order("created_at", { ascending: false });
 
   if (existingError) {
-    authMessageEl.textContent = "Kunde inte läsa molnhistorik före import.";
+    setButtonsDisabled(false);
+    setAuthMessage("Kunde inte läsa molnhistorik före import.", "error");
     return;
   }
 
@@ -937,7 +1035,8 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     const { error } = await supabase.from("qr_codes").insert(rowsToInsert);
 
     if (error) {
-      authMessageEl.textContent = "Kunde inte importera lokal historik.";
+      setButtonsDisabled(false);
+      setAuthMessage("Kunde inte importera lokal historik.", "error");
       return;
     }
   }
@@ -946,15 +1045,25 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
     localStorage.removeItem(HISTORY_KEY);
   }
 
+  setButtonsDisabled(false);
+
   if (!rowsToInsert.length && options.clearAfterImport) {
-    authMessageEl.textContent =
-      "Ingen ny lokal historik behövde importeras. Lokal historik rensades.";
+    setAuthMessage(
+      "Ingen ny lokal historik behövde importeras. Lokal historik rensades.",
+      "success"
+    );
   } else if (!rowsToInsert.length) {
-    authMessageEl.textContent = "All lokal historik finns redan i kontot.";
+    setAuthMessage("All lokal historik finns redan i kontot.", "info");
   } else if (options.clearAfterImport) {
-    authMessageEl.textContent = `${rowsToInsert.length} poster importerades och lokal historik rensades.`;
+    setAuthMessage(
+      `${rowsToInsert.length} poster importerades och lokal historik rensades.`,
+      "success"
+    );
   } else {
-    authMessageEl.textContent = `${rowsToInsert.length} poster importerades till ditt konto.`;
+    setAuthMessage(
+      `${rowsToInsert.length} poster importerades till ditt konto.`,
+      "success"
+    );
   }
 
   await loadCloudHistory();
@@ -974,8 +1083,11 @@ async function saveCurrent() {
   const item = buildHistoryItem();
   if (!item) return;
 
+  setButtonsDisabled(true);
+
   if (!currentUser) {
     saveCurrentToLocal();
+    setButtonsDisabled(false);
     return;
   }
 
@@ -994,12 +1106,14 @@ async function saveCurrent() {
       })
       .eq("id", editingId);
 
+    setButtonsDisabled(false);
+
     if (error) {
-      authMessageEl.textContent = "Kunde inte uppdatera QR-koden.";
+      setAuthMessage("Kunde inte uppdatera QR-koden.", "error");
       return;
     }
 
-    authMessageEl.textContent = "QR-koden uppdaterades.";
+    setAuthMessage("QR-koden uppdaterades.", "success");
     setEditMode(null);
     await loadCloudHistory();
     return;
@@ -1017,31 +1131,41 @@ async function saveCurrent() {
 
   const { error } = await supabase.from("qr_codes").insert(payload);
 
+  setButtonsDisabled(false);
+
   if (error) {
-    authMessageEl.textContent = "Kunde inte spara i molnet.";
+    setAuthMessage("Kunde inte spara i molnet.", "error");
     return;
   }
 
-  authMessageEl.textContent = "Sparad i ditt konto.";
+  setAuthMessage("Sparad i ditt konto.", "success");
   await loadCloudHistory();
 }
 
 async function deleteItem(id) {
+  const item = findHistoryItemById(id);
+  const label = item?.name || "den här QR-koden";
+  const confirmed = window.confirm(`Vill du ta bort ${label}?`);
+
+  if (!confirmed) return;
+
   if (!currentUser) {
-    setHistory(getHistory().filter((item) => item.id !== id));
+    setHistory(getHistory().filter((entry) => entry.id !== id));
     if (editingId === id) setEditMode(null);
     renderHistory();
+    showToast("QR-koden togs bort", "success");
     return;
   }
 
   const { error } = await supabase.from("qr_codes").delete().eq("id", id);
 
   if (error) {
-    authMessageEl.textContent = "Kunde inte ta bort QR-koden.";
+    setAuthMessage("Kunde inte ta bort QR-koden.", "error");
     return;
   }
 
   if (editingId === id) setEditMode(null);
+  showToast("QR-koden togs bort", "success");
   await loadCloudHistory();
 }
 
@@ -1055,6 +1179,10 @@ async function toggleFavorite(id) {
     );
     setHistory(history);
     renderHistory();
+    showToast(
+      item.isFavorite ? "Favorit togs bort" : "Markerad som favorit",
+      "success"
+    );
     return;
   }
 
@@ -1067,10 +1195,14 @@ async function toggleFavorite(id) {
     .eq("id", id);
 
   if (error) {
-    authMessageEl.textContent = "Kunde inte uppdatera favorit.";
+    setAuthMessage("Kunde inte uppdatera favorit.", "error");
     return;
   }
 
+  showToast(
+    item.isFavorite ? "Favorit togs bort" : "Markerad som favorit",
+    "success"
+  );
   await loadCloudHistory();
 }
 
@@ -1092,6 +1224,7 @@ async function duplicateItem(id) {
     history.unshift(duplicated);
     setHistory(history.slice(0, 50));
     renderHistory();
+    showToast("QR-koden duplicerades", "success");
     return;
   }
 
@@ -1108,10 +1241,11 @@ async function duplicateItem(id) {
   const { error } = await supabase.from("qr_codes").insert(payload);
 
   if (error) {
-    authMessageEl.textContent = "Kunde inte duplicera QR-koden.";
+    setAuthMessage("Kunde inte duplicera QR-koden.", "error");
     return;
   }
 
+  showToast("QR-koden duplicerades", "success");
   await loadCloudHistory();
 }
 
@@ -1119,16 +1253,24 @@ function loadHistoryItem(id) {
   const item = findHistoryItemById(id);
   if (!item) return;
   applyItemToForm(item);
+  showToast("QR-koden laddades", "success");
 }
 
 function clearHistory() {
   if (currentUser) {
-    authMessageEl.textContent = "Ta bort poster en och en när du är inloggad.";
+    setAuthMessage("Ta bort poster en och en när du är inloggad.", "info");
     return;
   }
 
+  const confirmed = window.confirm(
+    "Vill du rensa hela den lokala historiken?"
+  );
+
+  if (!confirmed) return;
+
   localStorage.removeItem(HISTORY_KEY);
   renderHistory();
+  showToast("Lokal historik rensades", "success");
 }
 
 function attachLiveListeners() {
@@ -1160,11 +1302,12 @@ async function refreshAuthState() {
   const { data, error } = await supabase.auth.getSession();
 
   if (error) {
-    authMessageEl.textContent = "Kunde inte läsa session.";
+    setAuthMessage("Kunde inte läsa session.", "error");
     return;
   }
 
   currentUser = data.session?.user || null;
+  updateSaveModeBadge();
 
   if (currentUser) {
     authLoggedOutEl.hidden = true;
@@ -1184,7 +1327,7 @@ async function signUp() {
   const password = authPasswordEl.value;
 
   if (!email || !password) {
-    authMessageEl.textContent = "Fyll i e-post och lösenord.";
+    setAuthMessage("Fyll i e-post och lösenord.", "error");
     return;
   }
 
@@ -1193,9 +1336,12 @@ async function signUp() {
     password
   });
 
-  authMessageEl.textContent = error
-    ? error.message
-    : "Konto skapat. Kontrollera din e-post om bekräftelse krävs.";
+  setAuthMessage(
+    error
+      ? error.message
+      : "Konto skapat. Kontrollera din e-post om bekräftelse krävs.",
+    error ? "error" : "success"
+  );
 }
 
 async function signIn() {
@@ -1203,7 +1349,7 @@ async function signIn() {
   const password = authPasswordEl.value;
 
   if (!email || !password) {
-    authMessageEl.textContent = "Fyll i e-post och lösenord.";
+    setAuthMessage("Fyll i e-post och lösenord.", "error");
     return;
   }
 
@@ -1213,17 +1359,17 @@ async function signIn() {
   });
 
   if (error) {
-    authMessageEl.textContent = error.message;
+    setAuthMessage(error.message, "error");
     return;
   }
 
-  authMessageEl.textContent = "Inloggad.";
+  setAuthMessage("Inloggad.", "success");
   await refreshAuthState();
 }
 
 async function signOut() {
   const { error } = await supabase.auth.signOut();
-  authMessageEl.textContent = error ? error.message : "Utloggad.";
+  setAuthMessage(error ? error.message : "Utloggad.", error ? "error" : "success");
   setEditMode(null);
   await refreshAuthState();
 }
@@ -1242,6 +1388,7 @@ logoUploadEl.addEventListener("change", () => {
   reader.onload = (event) => {
     logoImage = event.target.result;
     updateQr();
+    showToast("Logotyp uppladdad", "success");
   };
 
   reader.readAsDataURL(file);
@@ -1251,10 +1398,12 @@ removeLogoBtn.addEventListener("click", () => {
   logoImage = null;
   logoUploadEl.value = "";
   updateQr();
+  showToast("Logotyp borttagen", "success");
 });
 
 cancelEditBtn.addEventListener("click", () => {
   resetFormForNewItem();
+  showToast("Redigering avbruten", "info");
 });
 
 logoSizeEl.addEventListener("input", () => {
@@ -1265,6 +1414,14 @@ logoSizeEl.addEventListener("input", () => {
 sizeEl.addEventListener("input", () => {
   sizeValueEl.textContent = sizeEl.value;
   updateQr();
+});
+
+qrNameEl.addEventListener("input", () => {
+  if (editingId) {
+    editBannerTextEl.textContent = qrNameEl.value
+      ? `Du redigerar: ${qrNameEl.value}`
+      : "Du redigerar en sparad QR-kod.";
+  }
 });
 
 foregroundColorEl.addEventListener("input", updateQr);
@@ -1331,6 +1488,7 @@ renderFields();
 renderHistory();
 createQrInstance();
 updateQr();
+updatePreviewEmptyState(true);
 updateNetworkBadge();
 registerServiceWorker();
 setEditMode(null);

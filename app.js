@@ -1636,17 +1636,23 @@ historyListEl.addEventListener("click", async (event) => {
   if (action === "favorite") await toggleFavorite(id);
 });
 
-if (confirmCancelBtn) {
-  confirmCancelBtn.addEventListener("click", () => {
-    closeConfirmModal(false);
-  });
+function bindModalButton(button, result) {
+  if (!button) return;
+
+  const handler = (event) => {
+    if (event) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+    closeConfirmModal(result);
+  };
+
+  button.addEventListener("click", handler);
+  button.addEventListener("touchend", handler, { passive: false });
 }
 
-if (confirmOkBtn) {
-  confirmOkBtn.addEventListener("click", () => {
-    closeConfirmModal(true);
-  });
-}
+bindModalButton(confirmCancelBtn, false);
+bindModalButton(confirmOkBtn, true);
 
 if (confirmModalEl) {
   confirmModalEl.addEventListener("click", (event) => {
@@ -1654,6 +1660,17 @@ if (confirmModalEl) {
       closeConfirmModal(false);
     }
   });
+
+  confirmModalEl.addEventListener(
+    "touchend",
+    (event) => {
+      if (event.target === confirmModalEl) {
+        event.preventDefault();
+        closeConfirmModal(false);
+      }
+    },
+    { passive: false }
+  );
 }
 
 document.addEventListener("keydown", (event) => {

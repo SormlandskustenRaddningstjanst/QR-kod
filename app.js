@@ -41,7 +41,7 @@ const authLoggedInEl = document.getElementById("authLoggedIn");
 const userEmailEl = document.getElementById("userEmail");
 const authMessageEl = document.getElementById("authMessage");
 
-const HISTORY_KEY = "qr_studio_history_v11";
+const HISTORY_KEY = "qr_studio_history_v12";
 
 let qrCode = null;
 let logoImage = null;
@@ -255,7 +255,7 @@ function getFilteredHistory() {
   filtered.sort((a, b) => {
     if (a.isFavorite && !b.isFavorite) return -1;
     if (!a.isFavorite && b.isFavorite) return 1;
-    return (b.createdAt || 0) - (a.createdAt || 0);
+    return (b.updatedAt || b.createdAt || 0) - (a.updatedAt || a.createdAt || 0);
   });
 
   return filtered;
@@ -285,7 +285,10 @@ function renderHistory() {
           </div>
 
           <p class="history-text">${escapeHtml(previewText(item))}</p>
-          <p class="history-date">Sparad: ${escapeHtml(formatDate(item.createdAt))}</p>
+          <p class="history-date">Skapad: ${escapeHtml(formatDate(item.createdAt))}</p>
+          <p class="history-date">Senast uppdaterad: ${escapeHtml(
+            formatDate(item.updatedAt || item.createdAt)
+          )}</p>
 
           <div class="history-actions">
             <button data-action="load" data-id="${item.id}" type="button">Använd igen</button>
@@ -742,6 +745,7 @@ function buildHistoryItem() {
       logoSize: Number(logoSizeEl.value)
     },
     createdAt: Date.now(),
+    updatedAt: Date.now(),
     isFavorite: false
   };
 }
@@ -754,7 +758,12 @@ function normalizeCloudItems(data) {
     fields: item.fields || {},
     settings: item.settings || {},
     isFavorite: item.is_favorite || false,
-    createdAt: item.created_at ? new Date(item.created_at).getTime() : Date.now()
+    createdAt: item.created_at ? new Date(item.created_at).getTime() : Date.now(),
+    updatedAt: item.updated_at
+      ? new Date(item.updated_at).getTime()
+      : item.created_at
+        ? new Date(item.created_at).getTime()
+        : Date.now()
   }));
 }
 
@@ -830,6 +839,7 @@ function saveCurrentToLocal() {
         ? {
             ...item,
             createdAt: existing?.createdAt || Date.now(),
+            updatedAt: Date.now(),
             isFavorite: existing?.isFavorite || false
           }
         : entry
@@ -853,7 +863,7 @@ async function loadCloudHistory() {
   const { data, error } = await supabase
     .from("qr_codes")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("updated_at", { ascending: false });
 
   if (error) {
     authMessageEl.textContent = "Kunde inte läsa sparade QR-koder.";
@@ -919,7 +929,8 @@ async function importLocalHistoryToCloud(options = { clearAfterImport: false }) 
       type: item.type,
       fields: item.fields || {},
       settings: item.settings || {},
-      is_favorite: !!item.isFavorite
+      is_favorite: !!item.isFavorite,
+      updated_at: new Date().toISOString()
     }));
 
   if (rowsToInsert.length) {
@@ -1000,7 +1011,8 @@ async function saveCurrent() {
     type: item.type,
     fields: item.fields,
     settings: item.settings,
-    is_favorite: item.isFavorite
+    is_favorite: item.isFavorite,
+    updated_at: new Date().toISOString()
   };
 
   const { error } = await supabase.from("qr_codes").insert(payload);
@@ -1071,6 +1083,7 @@ async function duplicateItem(id) {
     id: generateId(),
     name: `${item.name || getDefaultName()} (kopia)`,
     createdAt: Date.now(),
+    updatedAt: Date.now(),
     isFavorite: false
   };
 
@@ -1088,7 +1101,8 @@ async function duplicateItem(id) {
     type: duplicated.type,
     fields: duplicated.fields,
     settings: duplicated.settings,
-    is_favorite: false
+    is_favorite: false,
+    updated_at: new Date().toISOString()
   };
 
   const { error } = await supabase.from("qr_codes").insert(payload);

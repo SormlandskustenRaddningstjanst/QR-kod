@@ -1636,34 +1636,17 @@ historyListEl.addEventListener("click", async (event) => {
   if (action === "favorite") await toggleFavorite(id);
 });
 
-function bindPress(element, handler) {
-  if (!element) return;
-
-  let handled = false;
-
-  const run = (event) => {
-    if (event) {
-      event.preventDefault();
-      event.stopPropagation();
-    }
-
-    if (handled) return;
-    handled = true;
-
-    handler();
-
-    window.setTimeout(() => {
-      handled = false;
-    }, 250);
-  };
-
-  element.addEventListener("click", run);
-  element.addEventListener("touchend", run, { passive: false });
-  element.addEventListener("pointerup", run);
+if (confirmCancelBtn) {
+  confirmCancelBtn.addEventListener("click", () => {
+    closeConfirmModal(false);
+  });
 }
 
-bindPress(confirmCancelBtn, () => closeConfirmModal(false));
-bindPress(confirmOkBtn, () => closeConfirmModal(true));
+if (confirmOkBtn) {
+  confirmOkBtn.addEventListener("click", () => {
+    closeConfirmModal(true);
+  });
+}
 
 if (confirmModalEl) {
   confirmModalEl.addEventListener("click", (event) => {
@@ -1671,17 +1654,6 @@ if (confirmModalEl) {
       closeConfirmModal(false);
     }
   });
-
-  confirmModalEl.addEventListener(
-    "touchend",
-    (event) => {
-      if (event.target === confirmModalEl) {
-        event.preventDefault();
-        closeConfirmModal(false);
-      }
-    },
-    { passive: false }
-  );
 }
 
 document.addEventListener("keydown", (event) => {

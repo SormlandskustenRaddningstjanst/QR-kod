@@ -6,6 +6,7 @@ const foregroundColorEl = document.getElementById("foregroundColor");
 const backgroundColorEl = document.getElementById("backgroundColor");
 const saveBtn = document.getElementById("saveBtn");
 const downloadBtn = document.getElementById("downloadBtn");
+const downloadSvgBtn = document.getElementById("downloadSvgBtn");
 const shareBtn = document.getElementById("shareBtn");
 const clearHistoryBtn = document.getElementById("clearHistoryBtn");
 const historyListEl = document.getElementById("historyList");
@@ -14,7 +15,40 @@ const qrWrapper = document.getElementById("qrWrapper");
 const errorEl = document.getElementById("error");
 const networkBadgeEl = document.getElementById("networkBadge");
 
-const HISTORY_KEY = "qr_studio_history_v3";
+const HISTORY_KEY = "qr_studio_history_v4";
+
+let qrCode = null;
+
+function createQrInstance() {
+  qrCode = new QRCodeStyling({
+    width: Number(sizeEl.value),
+    height: Number(sizeEl.value),
+    type: "canvas",
+    data: " ",
+    margin: 0,
+    qrOptions: {
+      errorCorrectionLevel: "H"
+    },
+    dotsOptions: {
+      color: foregroundColorEl.value,
+      type: "rounded"
+    },
+    backgroundOptions: {
+      color: backgroundColorEl.value
+    },
+    cornersSquareOptions: {
+      type: "extra-rounded",
+      color: foregroundColorEl.value
+    },
+    cornersDotOptions: {
+      type: "dot",
+      color: foregroundColorEl.value
+    }
+  });
+
+  qrContainer.innerHTML = "";
+  qrCode.append(qrContainer);
+}
 
 function escapeWifiValue(value) {
   return value
@@ -35,10 +69,6 @@ function isValidUrl(value) {
 
 function isValidEmail(value) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-}
-
-function clearQr() {
-  qrContainer.innerHTML = "";
 }
 
 function getHistory() {
@@ -281,60 +311,82 @@ function buildQrData() {
   return { error: "Okänd QR-typ." };
 }
 
-function generateQr() {
+function updateQr() {
+  errorEl.textContent = "";
+
+  const result = buildQrData();
   const size = Number(sizeEl.value);
   const foregroundColor = foregroundColorEl.value;
   const backgroundColor = backgroundColorEl.value;
 
-  errorEl.textContent = "";
-  clearQr();
   qrWrapper.style.background = backgroundColor;
 
+  if (!qrCode) {
+    createQrInstance();
+  }
+
+  qrCode.update({
+    width: size,
+    height: size,
+    data: result.data || " ",
+    dotsOptions: {
+      color: foregroundColor,
+      type: "rounded"
+    },
+    backgroundOptions: {
+      color: backgroundColor
+    },
+    cornersSquareOptions: {
+      type: "extra-rounded",
+      color: foregroundColor
+    },
+    cornersDotOptions: {
+      type: "dot",
+      color: foregroundColor
+    }
+  });
+
+  if (!result.data && result.error) {
+    errorEl.textContent = result.error;
+  }
+}
+
+async function downloadQr(extension) {
   const result = buildQrData();
 
   if (!result.data) {
-    if (result.error) errorEl.textContent = result.error;
-    return;
-  }
-
-  new QRCode(qrContainer, {
-    text: result.data,
-    width: size,
-    height: size,
-    colorDark: foregroundColor,
-    colorLight: backgroundColor,
-    correctLevel: QRCode.CorrectLevel.H
-  });
-}
-
-function getQrDataUrl() {
-  const canvas = qrContainer.querySelector("canvas");
-  const img = qrContainer.querySelector("img");
-
-  if (canvas) return canvas.toDataURL("image/png");
-  if (img) return img.src;
-  return null;
-}
-
-function downloadQr() {
-  const source = getQrDataUrl();
-
-  if (!source) {
     errorEl.textContent = "Skapa en QR-kod först.";
     return;
   }
 
-  const link = document.createElement("a");
-  link.href = source;
-  link.download = "qr-kod.png";
-  link.click();
+  try {
+    await qrCode.download({
+      name: "qr-kod",
+      extension
+    });
+  } catch {
+    errorEl.textContent = `Kunde inte ladda ner ${extension.toUpperCase()}.`;
+  }
+}
+
+function getCanvasDataUrl() {
+  const canvas = qrContainer.querySelector("canvas");
+  if (!canvas) return null;
+  return canvas.toDataURL("image/png");
 }
 
 async function shareQr() {
-  const source = getQrDataUrl();
+  const result = buildQrData();
+
+  if (!result.data) {
+    errorEl.textContent = "Skapa en QR-kod först.";
+    return;
+  }
+
+  const source = getCanvasDataUrl();
 
   if (!source) {
-    errorEl.textContent = "Skapa en QR-kod först.";
+    errorEl.textContent = "Kunde inte skapa bild för delning.";
     return;
   }
 
@@ -419,7 +471,7 @@ function loadHistoryItem(index) {
     document.getElementById("hiddenNetwork").checked = !!item.fields.hiddenNetwork;
   }
 
-  generateQr();
+  updateQr();
 }
 
 function deleteHistoryItem(index) {
@@ -438,8 +490,8 @@ function attachLiveListeners() {
   const inputs = dynamicFieldsEl.querySelectorAll("input, textarea, select");
 
   inputs.forEach((input) => {
-    input.addEventListener("input", generateQr);
-    input.addEventListener("change", generateQr);
+    input.addEventListener("input", updateQr);
+    input.addEventListener("change", updateQr);
   });
 }
 
@@ -461,20 +513,21 @@ function registerServiceWorker() {
 
 sizeEl.addEventListener("input", () => {
   sizeValueEl.textContent = sizeEl.value;
-  generateQr();
+  updateQr();
 });
 
-foregroundColorEl.addEventListener("input", generateQr);
-backgroundColorEl.addEventListener("input", generateQr);
+foregroundColorEl.addEventListener("input", updateQr);
+backgroundColorEl.addEventListener("input", updateQr);
 
 typeEl.addEventListener("change", () => {
   errorEl.textContent = "";
   renderFields();
-  generateQr();
+  updateQr();
 });
 
 saveBtn.addEventListener("click", saveCurrentToHistory);
-downloadBtn.addEventListener("click", downloadQr);
+downloadBtn.addEventListener("click", () => downloadQr("png"));
+downloadSvgBtn.addEventListener("click", () => downloadQr("svg"));
 shareBtn.addEventListener("click", shareQr);
 clearHistoryBtn.addEventListener("click", clearHistory);
 
@@ -494,12 +547,13 @@ window.addEventListener("offline", updateNetworkBadge);
 
 document.addEventListener("keydown", (event) => {
   if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
-    generateQr();
+    updateQr();
   }
 });
 
 renderFields();
 renderHistory();
-generateQr();
+createQrInstance();
+updateQr();
 updateNetworkBadge();
 registerServiceWorker();

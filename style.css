@@ -402,3 +402,55 @@ input[type="color"] {
 #removeLogoBtn {
   margin-top: 12px;
 }
+
+.history-toolbar {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.history-item-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.history-name {
+  margin: 6px 0 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.history-date {
+  margin: 10px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.history-star {
+  width: auto;
+  min-width: 44px;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.history-item.is-favorite {
+  border-color: #f59e0b;
+  box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.2);
+}
+
+#removeLogoBtn {
+  margin-top: 12px;
+}
+
+@media (min-width: 768px) {
+  .history-toolbar {
+    grid-template-columns: 1fr 220px;
+  }
+}

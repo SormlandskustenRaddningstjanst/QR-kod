@@ -585,3 +585,13 @@ border-radius:8px;
 border:none;
 cursor:pointer;
 }
+
+button:disabled {
+  opacity: 0.65;
+  cursor: not-allowed;
+}
+
+#loadingStatus {
+  margin-top: 8px;
+  color: var(--muted);
+}

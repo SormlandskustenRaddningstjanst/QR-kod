@@ -970,3 +970,178 @@ button:disabled {
     border-radius: 18px;
   }
 }
+
+/* === Premium animationer === */
+
+.card,
+.history-item,
+.primary-btn,
+.secondary-btn,
+.ghost-btn,
+#qrcode canvas,
+#qrcode img,
+.toast,
+.edit-banner,
+.save-mode-badge {
+  transition:
+    transform 0.22s ease,
+    opacity 0.22s ease,
+    box-shadow 0.22s ease,
+    background-color 0.22s ease,
+    border-color 0.22s ease,
+    color 0.22s ease;
+}
+
+.card {
+  animation: cardFadeIn 0.45s ease both;
+}
+
+.card:nth-of-type(2) {
+  animation-delay: 0.04s;
+}
+
+.card:nth-of-type(3) {
+  animation-delay: 0.08s;
+}
+
+.history-item {
+  animation: itemFadeIn 0.32s ease both;
+}
+
+.primary-btn:hover,
+.secondary-btn:hover,
+.ghost-btn:hover {
+  transform: translateY(-1px);
+}
+
+.primary-btn:active,
+.secondary-btn:active,
+.ghost-btn:active {
+  transform: scale(0.985);
+}
+
+.history-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(15, 23, 42, 0.08);
+}
+
+.history-item:active {
+  transform: scale(0.995);
+}
+
+#qrcode canvas,
+#qrcode img {
+  animation: qrPopIn 0.3s ease;
+}
+
+.toast.show {
+  animation: toastSlideUp 0.25s ease both;
+}
+
+.edit-banner {
+  animation: softSlideDown 0.28s ease both;
+}
+
+.save-mode-badge.is-saving {
+  animation: pulseBadge 1s ease infinite;
+}
+
+.preview-empty-state {
+  animation: softFadeIn 0.25s ease both;
+}
+
+@keyframes cardFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes itemFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes qrPopIn {
+  from {
+    opacity: 0.7;
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes toastSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes softFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulseBadge {
+  0% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(37, 99, 235, 0);
+  }
+  50% {
+    transform: scale(1.015);
+    box-shadow: 0 0 0 8px rgba(37, 99, 235, 0.08);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 rgba(37, 99, 235, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .history-item,
+  .primary-btn,
+  .secondary-btn,
+  .ghost-btn,
+  #qrcode canvas,
+  #qrcode img,
+  .toast,
+  .edit-banner,
+  .save-mode-badge,
+  .preview-empty-state {
+    animation: none !important;
+    transition: none !important;
+  }
+}

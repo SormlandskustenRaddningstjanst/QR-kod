@@ -230,14 +230,44 @@ function openConfirmModal({
   confirmText = "Fortsätt",
   cancelText = "Avbryt"
 }) {
-  const fullMessage =
-    title && title !== "Bekräfta" ? `${title}
+  if (
+    !confirmModalEl ||
+    !confirmModalTitleEl ||
+    !confirmModalMessageEl ||
+    !confirmCancelBtn ||
+    !confirmOkBtn
+  ) {
+    return Promise.resolve(window.confirm(message));
+  }
 
-${message}` : message;
-  return Promise.resolve(window.confirm(fullMessage));
+  confirmModalTitleEl.textContent = title;
+  confirmModalMessageEl.textContent = message;
+  confirmOkBtn.textContent = confirmText;
+  confirmCancelBtn.textContent = cancelText;
+
+  lastFocusedElement = document.activeElement;
+  confirmModalEl.hidden = false;
+  document.body.style.overflow = "hidden";
+
+  window.setTimeout(() => {
+    confirmOkBtn.focus();
+  }, 0);
+
+  return new Promise((resolve) => {
+    activeConfirmResolve = resolve;
+  });
 }
 
 function closeConfirmModal(result) {
+  if (!confirmModalEl) return;
+
+  confirmModalEl.hidden = true;
+  document.body.style.overflow = "";
+
+  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
+    lastFocusedElement.focus();
+  }
+
   if (activeConfirmResolve) {
     activeConfirmResolve(result);
     activeConfirmResolve = null;
@@ -904,6 +934,12 @@ function updateQr() {
   const backgroundColor = backgroundColorEl.value;
 
   qrWrapper.style.background = backgroundColor;
+
+  if (qrContainer) {
+    qrContainer.classList.remove("qr-transition");
+    void qrContainer.offsetWidth;
+    qrContainer.classList.add("qr-transition");
+  }
 
   if (!qrCode) createQrInstance();
 
@@ -1791,9 +1827,32 @@ historyListEl.addEventListener("click", async (event) => {
   if (action === "favorite") await toggleFavorite(id);
 });
 
-// Ingen custom modal används längre. Bekräftelser körs via window.confirm().
+if (confirmCancelBtn) {
+  confirmCancelBtn.addEventListener("click", () => {
+    closeConfirmModal(false);
+  });
+}
+
+if (confirmOkBtn) {
+  confirmOkBtn.addEventListener("click", () => {
+    closeConfirmModal(true);
+  });
+}
+
+if (confirmModalEl) {
+  confirmModalEl.addEventListener("click", (event) => {
+    if (event.target === confirmModalEl) {
+      closeConfirmModal(false);
+    }
+  });
+}
 
 document.addEventListener("keydown", (event) => {
+  if (confirmModalEl && !confirmModalEl.hidden && event.key === "Escape") {
+    closeConfirmModal(false);
+    return;
+  }
+
   if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
     updateQr();
   }

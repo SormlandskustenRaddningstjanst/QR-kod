@@ -103,6 +103,25 @@ function clearAutoSaveFlashTimer() {
   }
 }
 
+function updateSaveModeBadge() {
+  if (editingId && currentUser) {
+    saveModeBadgeEl.textContent = "Redigerar molnsparad QR-kod";
+    return;
+  }
+
+  if (editingId && !currentUser) {
+    saveModeBadgeEl.textContent = "Redigerar lokalt sparad QR-kod";
+    return;
+  }
+
+  if (currentUser) {
+    saveModeBadgeEl.textContent = "Sparas i ditt konto";
+    return;
+  }
+
+  saveModeBadgeEl.textContent = "Sparas lokalt på enheten";
+}
+
 function restoreSaveBadgeState() {
   clearAutoSaveFlashTimer();
   updateSaveModeBadge();
@@ -230,44 +249,12 @@ function openConfirmModal({
   confirmText = "Fortsätt",
   cancelText = "Avbryt"
 }) {
-  if (
-    !confirmModalEl ||
-    !confirmModalTitleEl ||
-    !confirmModalMessageEl ||
-    !confirmCancelBtn ||
-    !confirmOkBtn
-  ) {
-    return Promise.resolve(window.confirm(message));
-  }
-
-  confirmModalTitleEl.textContent = title;
-  confirmModalMessageEl.textContent = message;
-  confirmOkBtn.textContent = confirmText;
-  confirmCancelBtn.textContent = cancelText;
-
-  lastFocusedElement = document.activeElement;
-  confirmModalEl.hidden = false;
-  document.body.style.overflow = "hidden";
-
-  window.setTimeout(() => {
-    confirmOkBtn.focus();
-  }, 0);
-
-  return new Promise((resolve) => {
-    activeConfirmResolve = resolve;
-  });
+  const fullMessage =
+    title && title !== "Bekräfta" ? `${title}\n\n${message}` : message;
+  return Promise.resolve(window.confirm(fullMessage));
 }
 
 function closeConfirmModal(result) {
-  if (!confirmModalEl) return;
-
-  confirmModalEl.hidden = true;
-  document.body.style.overflow = "";
-
-  if (lastFocusedElement && typeof lastFocusedElement.focus === "function") {
-    lastFocusedElement.focus();
-  }
-
   if (activeConfirmResolve) {
     activeConfirmResolve(result);
     activeConfirmResolve = null;
@@ -305,25 +292,6 @@ function setInlineError(message) {
 function setAuthMessage(message, type = "info") {
   authMessageEl.textContent = message || "";
   if (message) showToast(message, type);
-}
-
-function updateSaveModeBadge() {
-  if (editingId && currentUser) {
-    saveModeBadgeEl.textContent = "Redigerar molnsparad QR-kod";
-    return;
-  }
-
-  if (editingId && !currentUser) {
-    saveModeBadgeEl.textContent = "Redigerar lokalt sparad QR-kod";
-    return;
-  }
-
-  if (currentUser) {
-    saveModeBadgeEl.textContent = "Sparas i ditt konto";
-    return;
-  }
-
-  saveModeBadgeEl.textContent = "Sparas lokalt på enheten";
 }
 
 function setEditMode(id = null) {
@@ -606,7 +574,6 @@ function renderHistory() {
     })
     .join("");
 }
-
 
 function renderFields() {
   const type = typeEl.value;
@@ -1773,6 +1740,7 @@ foregroundColorEl.addEventListener("input", () => {
   updateQr();
   queueAutoSave();
 });
+
 backgroundColorEl.addEventListener("input", () => {
   updateQr();
   queueAutoSave();
@@ -1821,32 +1789,9 @@ historyListEl.addEventListener("click", async (event) => {
   if (action === "favorite") await toggleFavorite(id);
 });
 
-if (confirmCancelBtn) {
-  confirmCancelBtn.addEventListener("click", () => {
-    closeConfirmModal(false);
-  });
-}
-
-if (confirmOkBtn) {
-  confirmOkBtn.addEventListener("click", () => {
-    closeConfirmModal(true);
-  });
-}
-
-if (confirmModalEl) {
-  confirmModalEl.addEventListener("click", (event) => {
-    if (event.target === confirmModalEl) {
-      closeConfirmModal(false);
-    }
-  });
-}
+// Ingen custom modal används längre. Bekräftelser körs via window.confirm().
 
 document.addEventListener("keydown", (event) => {
-  if (confirmModalEl && !confirmModalEl.hidden && event.key === "Escape") {
-    closeConfirmModal(false);
-    return;
-  }
-
   if (event.key === "Enter" && event.target.tagName !== "TEXTAREA") {
     updateQr();
   }

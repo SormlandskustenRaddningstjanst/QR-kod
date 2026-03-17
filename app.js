@@ -103,25 +103,6 @@ function clearAutoSaveFlashTimer() {
   }
 }
 
-function updateSaveModeBadge() {
-  if (editingId && currentUser) {
-    saveModeBadgeEl.textContent = "Redigerar molnsparad QR-kod";
-    return;
-  }
-
-  if (editingId && !currentUser) {
-    saveModeBadgeEl.textContent = "Redigerar lokalt sparad QR-kod";
-    return;
-  }
-
-  if (currentUser) {
-    saveModeBadgeEl.textContent = "Sparas i ditt konto";
-    return;
-  }
-
-  saveModeBadgeEl.textContent = "Sparas lokalt på enheten";
-}
-
 function restoreSaveBadgeState() {
   clearAutoSaveFlashTimer();
   updateSaveModeBadge();
@@ -250,7 +231,9 @@ function openConfirmModal({
   cancelText = "Avbryt"
 }) {
   const fullMessage =
-    title && title !== "Bekräfta" ? `${title}\n\n${message}` : message;
+    title && title !== "Bekräfta" ? `${title}
+
+${message}` : message;
   return Promise.resolve(window.confirm(fullMessage));
 }
 
@@ -292,6 +275,25 @@ function setInlineError(message) {
 function setAuthMessage(message, type = "info") {
   authMessageEl.textContent = message || "";
   if (message) showToast(message, type);
+}
+
+function updateSaveModeBadge() {
+  if (editingId && currentUser) {
+    saveModeBadgeEl.textContent = "Redigerar molnsparad QR-kod";
+    return;
+  }
+
+  if (editingId && !currentUser) {
+    saveModeBadgeEl.textContent = "Redigerar lokalt sparad QR-kod";
+    return;
+  }
+
+  if (currentUser) {
+    saveModeBadgeEl.textContent = "Sparas i ditt konto";
+    return;
+  }
+
+  saveModeBadgeEl.textContent = "Sparas lokalt på enheten";
 }
 
 function setEditMode(id = null) {
@@ -574,6 +576,7 @@ function renderHistory() {
     })
     .join("");
 }
+
 
 function renderFields() {
   const type = typeEl.value;
@@ -1740,7 +1743,6 @@ foregroundColorEl.addEventListener("input", () => {
   updateQr();
   queueAutoSave();
 });
-
 backgroundColorEl.addEventListener("input", () => {
   updateQr();
   queueAutoSave();
